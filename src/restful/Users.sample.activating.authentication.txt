@@ -1,0 +1,71 @@
+<?php
+
+use Vanella\Handlers\Restful;
+
+class Users extends Restful
+{
+    protected $tableName = "users";
+
+    public function __construct($args = [])
+    {
+        $this->childClass = $this;
+        parent::__construct($args);
+    }
+
+    /**
+     * You can manually set the authentication for this class here
+     * or you can set this on config/authentication.php
+     *
+     */
+    public function defaultConfig()
+    {
+        // You can turn this on if you want authentication on this endpoint group.
+        $this->isAuthActivated = true;
+
+        // Turn this on to enable custom authentication
+        $this->enableCustomAuthentication = false;
+
+        //  Turn this on to enable authentication status response included in your json response
+        $this->isAuthInDebugMode = false;
+
+        // Register a custom endpoint when the isAuthActivated = true
+        $this->_registerEndpointToAccessRule('anotherEndpoint', [
+            'isAccessPageViaAccessToken' => true,
+        ]);
+
+        // You can override access rules by doing so
+        $this->_registerEndpointToAccessRule('read', [
+            'isAccessPageViaAccessToken' => true,
+        ]);
+
+    }
+
+    /**
+     * When you set enableCustomAuthentication = true,
+     * Add this function here and declare it as protected.
+     */
+    public function customAuthentication()
+    {
+        // This property will determine if authentication is successful.
+        $this->isAuthenticationSuccessful = true;
+    }
+
+    /**
+     * Another endpoint you want to add (Registered Endpoint).
+     * See sample above on how to register an endpoint
+     * when isAuthActivated = true
+     */
+    public function anotherEndpoint()
+    {
+        // Your custom endpoint here
+    }
+
+    /**
+     * Another endpoint you want to add (Unregistered Endpoint)..
+     */
+    public function anotherSampleEndpoint()
+    {
+        // Your custom endpoint here
+    }
+
+}

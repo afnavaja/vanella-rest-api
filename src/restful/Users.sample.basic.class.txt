@@ -1,0 +1,19 @@
+<?php
+
+use Vanella\Handlers\Restful;
+
+/**
+ * Just copy this simple class file
+ * and set the tablename for the corresponding
+ * database table and you're good to go!
+ */
+class Users extends Restful
+{
+    protected $tableName = "users";
+
+    public function __construct($args = [])
+    {
+        $this->childClass = $this;
+        parent::__construct($args);
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "name": "afnav/vanella-rest-api",
+    "description": "Vanella REST API Framework is a standalone api framework using native php.",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Adrian",
+            "email": "afnavaja@gmail.com"
+        }
+    ],
+    "require": {
+        "firebase/php-jwt": "^5.2"
+    }
+}
