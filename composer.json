@@ -10,6 +10,7 @@
         }
     ],
     "require": {
+        "afnav/vanella-rest-api":"dev-master@dev",
         "firebase/php-jwt": "^5.2"
     },
     "repositories": [
