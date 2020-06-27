@@ -10,7 +10,7 @@ class Authentication extends Entrypoint
 {
     protected $isAuthActivated;
     protected $authEndpointList;
-    protected $authConfig = [];
+    protected $authConfig = ['default' => []];
     protected $isAuthenticationSuccessful;
     protected $customAuthenticationMethod;
     protected $enableCustomAuthentication = false;
@@ -41,7 +41,7 @@ class Authentication extends Entrypoint
     {
 
         // Initally load all all auth configs found in config/authentication.php
-        $this->authConfig['default'] = isset($args['config']['authentication']) ? $args['config']['authentication'] : [];
+        $this->authConfig['default'] = !empty($args['config']['authentication']) ? $args['config']['authentication'] : [];
 
         // Declare the access_rule as empty at first. This line here will determine
         // if the certain resource or endpoint can be access
@@ -49,13 +49,13 @@ class Authentication extends Entrypoint
         Helpers::run_child_method($this, 'accessRule');
 
         // Turn this on if you want authentication on this endpoint group.
-        $this->isAuthActivated = $this->authConfig['default']['isAuthActivated'];
+        $this->isAuthActivated = isset($this->authConfig['default']['isAuthActivated']) ? $this->authConfig['default']['isAuthActivated']:null;
 
         // Set to true if you want more detailed json response for the authentication handler
-        $this->isAuthInDebugMode = $this->authConfig['default']['isAuthInDebugMode'];
+        $this->isAuthInDebugMode = isset($this->authConfig['default']['isAuthInDebugMode']) ? $this->authConfig['default']['isAuthInDebugMode']:null;
 
         // Turn this on to enable custom authentication
-        $this->enableCustomAuthentication = $this->authConfig['default']['enableCustomAuthentication'];
+        $this->enableCustomAuthentication = isset($this->authConfig['default']['enableCustomAuthentication']) ? $this->authConfig['default']['enableCustomAuthentication']:null;
 
         // This is to override Authentication config class from the child class
         Helpers::run_child_method($this, 'defaultConfig');
@@ -77,6 +77,7 @@ class Authentication extends Entrypoint
     {
 
         $authStatusResponse = [];
+        $responseCode = 200;
 
         // If auth config is missing
         if (!$this->authConfig['access_rule']) {
@@ -84,6 +85,7 @@ class Authentication extends Entrypoint
                 'message' => 'Please specify endpoint names to be authenticated. You set the isAuthactivated to true, therefore this API framework requires you to specify the access rule for each endpoints. See the endpoint list below.',
             ], $authStatusResponse);
             $this->isAuthenticationSuccessful = true;
+            $responseCode = 400; // Bad Request
         }
 
         // If AuthConfig is set
@@ -100,6 +102,7 @@ class Authentication extends Entrypoint
                 ], $authStatusResponse);
 
                 $this->isAuthenticationSuccessful = false;
+                $responseCode = 400; // Bad Request
             } else { // If the curent enpoint access rule is set
 
                 // If the isAccessPageViaAccessToken is false
@@ -108,18 +111,18 @@ class Authentication extends Entrypoint
                     // If the endpoint can be access without having the need of an Access Token
                     if (!$this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
                         $authStatusResponse = array_merge([
-                            'message' => 'The ' . $this->endpoint . ' endpoint is allowed to be access without an access token.',
+                            'message' => 'The ' . $this->endpoint . ' endpoint is allowed to be access without an access token. Do not pass an access token.',
                         ], $authStatusResponse);
                         $this->isAuthenticationSuccessful = true;
+                        $responseCode = 200;
                     } else { //
                         $authStatusResponse = array_merge([
                             'message' => 'You are not allowed to access this resource',
                         ], $authStatusResponse);
                         $this->isAuthenticationSuccessful = false;
+                        $responseCode = 401; // Unauthorized
                     }
-
                 }
-
             }
         }
 
@@ -139,7 +142,7 @@ class Authentication extends Entrypoint
 
         // If authentication failed. Display this set of message.
         if (!$this->isAuthenticationSuccessful) {
-            Helpers::renderAsJson($authStatusResponse);
+            Helpers::renderAsJson($authStatusResponse, $responseCode);
         }
 
         // Set the authStatusResponse for this parent class
@@ -200,9 +203,11 @@ class Authentication extends Entrypoint
     protected function _registerEndpointToAccessRule($endpointName, $args = [])
     {
         if (isset($endpointName) && $args) {
-            $this->authConfig['access_rule'] = array_merge($this->authConfig['access_rule'], [
-                $endpointName => $args,
-            ]);
+            if (isset($this->authConfig['access_rule'])) {
+                $this->authConfig['access_rule'] = array_merge($this->authConfig['access_rule'], [
+                    $endpointName => $args,
+                ]);
+            }
         }
 
         return $this;
@@ -231,8 +236,8 @@ class Authentication extends Entrypoint
 
         // Load the auth config from config/authentication.php
         $authConfig = $this->_getActiveConfig(
-            $this->authConfig['default']['activeAuthName'],
-            $this->authConfig['default']['authList'],
+            isset($this->authConfig['default']['activeAuthName']) ? $this->authConfig['default']['activeAuthName']:null,
+            isset($this->authConfig['default']['authList']) ? $this->authConfig['default']['authList']:[],
             'name'
         );
 

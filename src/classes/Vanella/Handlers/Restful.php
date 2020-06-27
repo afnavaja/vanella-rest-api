@@ -154,8 +154,9 @@ class Restful extends Authentication implements RestfulInterface
             $response_code = null;
 
             if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+                $post = $this->_cleanedPostData($_POST);
 
-                if (!$this->id) { // Always check if the id is there
+                if (!$this->id && !empty($post)) { // Always check if the id is there
 
                     $db = new Database(
                         $this->dbConfig['db_host'],
@@ -171,11 +172,16 @@ class Restful extends Authentication implements RestfulInterface
                     ]);
 
                     // Insert the data
-                    $result = $db->insert($this->tableName, $this->_cleanedPostData($_POST))->execute();
+                    $result = $db->insert($this->tableName, $post)->execute();
                     $success = true;
                     $message = 'Succesfully added record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $result . '.';
                     $message = (isset($this->defaultSuccessMessageCreate) ? $this->defaultSuccessMessageCreate : $message);
                     $response_code = 201; // Created
+                } else {
+                    if (empty($_POST)) {
+                        $message = 'No data has been passed.';
+                        $response_code = 400; // Bad Request
+                    }
                 }
             } else {
                 $message = 'Only POST methods are allowed';
@@ -386,7 +392,7 @@ class Restful extends Authentication implements RestfulInterface
         $this->_registerEndpointToAccessRule('endpoints', [
             'isAccessPageViaAccessToken' => false,
         ]);
-       
+
         // Set default for read pagination
         $this->id = isset($args['id']) ? $args['id'] : null;
         $this->limit = intval(isset($_GET['limit']) ? $_GET['limit'] : $this->limit);
