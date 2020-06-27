@@ -10,7 +10,7 @@
             "role": "Developer"
         }
     ],
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "require": {
         "firebase/php-jwt": "^5.2"
     }
