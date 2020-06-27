@@ -6,17 +6,12 @@
     "authors": [
         {
             "name": "Adrian",
-            "email": "afnavaja@gmail.com"
+            "email": "afnavaja@gmail.com",
+            "role": "Developer"
         }
     ],
+    "minimum-stability": "dev",
     "require": {
-        "afnav/vanella-rest-api":"dev-master@dev",
         "firebase/php-jwt": "^5.2"
-    },
-    "repositories": [
-        {
-           "type": "github",
-           "url": "https://github.com/afnavaja/vanella-rest-api.git" 
-        }
-      ]
+    }
 }
