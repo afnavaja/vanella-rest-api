@@ -5,8 +5,8 @@ html, body {
 }
 
 body {
-  font-family: sans-serif;
-  line-height: 2rem;
+  font-family: 'Montserrat';
+  line-height: 3rem;
   letter-spacing: 1px;
   background-color: #FFFBE9;
   color: #352d0c;
@@ -15,6 +15,15 @@ body {
 body .container {
   width: 80%;
   margin: 0 auto;
+}
+
+body .container a {
+  text-decoration: none;
+  color: blueviolet;
+}
+
+body .container a:hover {
+  text-decoration: underline !important;
 }
 
 body .container section {
@@ -29,6 +38,40 @@ body .container section div {
   padding: 1em 2em;
   background-color: #fafafa;
   border-bottom: 1px solid #e2d69f;
+}
+
+body .container section div ul li .command, body .container section div ol li .command {
+  background: #1E1E1E;
+  color: #CCC6AB;
+  padding: 2px 1em;
+  border: 1px solid #d1d1d1;
+}
+
+body .container section div ul li .link, body .container section div ol li .link {
+  background: #cecece;
+  padding: 7px;
+  border: 1px solid #d1d1d1;
+}
+
+body .container section div ul li .directory, body .container section div ol li .directory {
+  background: #ffffff;
+  padding: 7px;
+  border: 1px solid #DADBDC;
+}
+
+body .container section div ul li .config-element, body .container section div ol li .config-element {
+  background: #1E1E1E;
+  color: #00BF00;
+  padding: 7px;
+  border: 1px solid #DADBDC;
+}
+
+body .container section div ul li .important, body .container section div ol li .important {
+  background: #ffffff;
+  padding: 20px;
+  border: 1px solid #DADBDC;
+  color: #bf1717;
+  font-weight: bold;
 }
 
 body .container section div.why-vanella-api {

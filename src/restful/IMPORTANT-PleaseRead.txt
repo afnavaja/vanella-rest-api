@@ -1,0 +1,4 @@
+If you recently activated authentication via vanella command -> [php vanella activate:config], then read this please!
+
+- Please go to /src/restful/Users.sample.activating.authentication.txt
+- Go to line 31 and please read starting that line.

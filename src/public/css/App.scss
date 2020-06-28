@@ -5,8 +5,8 @@ html, body {
 }
 
 body {
-    font-family: sans-serif;
-    line-height: 2rem;
+    font-family: 'Montserrat';
+    line-height: 3rem;
     letter-spacing: 1px;
     background-color: #FFFBE9;
     color: #352d0c;
@@ -14,6 +14,17 @@ body {
     .container {
         width: 80%;
         margin: 0 auto;
+
+        
+
+        a {
+            text-decoration: none;
+            color: blueviolet;
+        }
+
+        a:hover {
+            text-decoration: underline !important;
+        }
 
         section { 
             padding-top: 1em;      
@@ -24,13 +35,54 @@ body {
                 text-align: left;
                 padding: 1em 2em;
                 background-color: #fafafa;
-                border-bottom: 1px solid #e2d69f;                
+                border-bottom: 1px solid #e2d69f;    
+                
+                ul, ol {
+                    li {
+                        .command {
+                            background:#1E1E1E;
+                            color: #CCC6AB;
+                            padding: 2px 1em;
+                            border: 1px solid #d1d1d1;
+                        }
+
+                        .link {
+                            background:#cecece;
+                            padding: 7px;
+                            border: 1px solid #d1d1d1;
+                        }
+
+                        .directory {
+                            background: #ffffff;;
+                            padding: 7px;
+                            border: 1px solid #DADBDC;
+                        }
+
+                        .config-element {
+                            background: #1E1E1E;
+                            color: #00BF00;
+                            padding: 7px;
+                            border: 1px solid #DADBDC;
+                        }     
+                        
+                        .important {
+                            background: #ffffff;;
+                            padding: 20px;
+                            border: 1px solid #DADBDC;
+                            color: #bf1717;
+                            font-weight:bold;
+                        }
+                    }
+                }
+                
             }
 
             div.why-vanella-api {
                 background-color: #fafafa;
             }
         }
+
+        
     }
 }
 

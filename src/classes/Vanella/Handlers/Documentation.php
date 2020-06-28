@@ -16,6 +16,7 @@ class Documentation
     public function index()
     {
         $data['config'] = $this->_args['config'];
+        
         Controller::render(__DIR__ . '/views/index', $data);
     }
 

@@ -19,7 +19,7 @@ class Users extends Restful
      */
     public function defaultConfig()
     {
-        // You can turn this on if you want authentication on this endpoint group.
+        // You can turn this on if you want authentication on this specific endpoint group.
         $this->isAuthActivated = true;
 
         // Turn this on to enable custom authentication
@@ -27,13 +27,15 @@ class Users extends Restful
 
         //  Turn this on to enable authentication status response included in your json response
         $this->isAuthInDebugMode = false;
-
+        
+        // Put this method in this class function defaultConfig()
         // Register a custom endpoint when the isAuthActivated = true
         $this->_registerEndpointToAccessRule('anotherEndpoint', [
             'isAccessPageViaAccessToken' => true,
         ]);
 
-        // You can override access rules by doing so
+        // The "read endpoint is already available in Vanella\Handlers\Restful class
+        // But you can override access rules by doing so
         $this->_registerEndpointToAccessRule('read', [
             'isAccessPageViaAccessToken' => true,
         ]);
@@ -57,7 +59,7 @@ class Users extends Restful
      */
     public function anotherEndpoint()
     {
-        // Your custom endpoint here
+        // Your custom code here
     }
 
     /**
@@ -65,7 +67,7 @@ class Users extends Restful
      */
     public function anotherSampleEndpoint()
     {
-        // Your custom endpoint here
+        // Your custom code here
     }
 
 }
