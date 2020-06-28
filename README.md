@@ -16,8 +16,6 @@ Vanella REST API Framework is a standalone API framework using native php.
 - PHP Version (>= 5.3.0, PHP 7).
 - MySQL.
 
-Install the dependencies and devDependencies and start the server.
-
 ```sh
 $ composer create-project afnav/vanella-rest-api
 ```
