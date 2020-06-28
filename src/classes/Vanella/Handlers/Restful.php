@@ -367,7 +367,7 @@ class Restful extends Authentication implements RestfulInterface
      *
      * @return array
      */
-    private function _cleanedPostData()
+    protected function _cleanedPostData()
     {
         $data = [];
         foreach ($_POST as $key => $value) {
