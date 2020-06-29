@@ -27,7 +27,7 @@ $ composer create-project afnav/vanella-rest-api
     ```
 - Run and choose [all] to create the initial config.
     ```sh
-    - $ php vanella create:config
+    $ php vanella create:config
     ```
 - Go to your app root directory /src/config/database.php to change the database credentials.
 - In your /src/config/main.php file there is an active_env key, you change it to "development" or "production" if you want. Default value is "development".
@@ -38,7 +38,7 @@ $ composer create-project afnav/vanella-rest-api
  1. Run this command to create your first endpoint group. 
 
     ```sh
-    - $ php vanella create:endpointgroup
+     $ php vanella create:endpointgroup
     ``` 
  2. After that, you can locate your class file in "/src/restful/SomeClassFileForYourEndpointGroup.php" See examples below.
 http://yourwebsite.com/users/read
@@ -54,7 +54,7 @@ http://yourwebsite.com/users/delete
 ### Basic CLI Commands (Creating Endpoints)
  1. Run this comand to create an endpoint.
     ```sh
-    - $ php vanella create:endpoint
+     $ php vanella create:endpoint
     ``` 
  2. The app will create those endpoints for you. See examples below.
  - http://yourwebsite.com/users/yourcustomEndpoint
@@ -88,7 +88,7 @@ http://yourwebsite.com/users/delete
 
  1. Run this comand to activate authentication. The app will generate the necessary files for authentication.
     ```sh
-    - $ php vanella activate:auth
+     $ php vanella activate:auth
     ``` 
  2. Test the auth using Postman. If you don't have Postman in your computer, download it here! https://www.postman.com/downloads
  3. Primarily uses OAuth2.0 for client authentication to generate the JWT access tokens.
