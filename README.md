@@ -77,14 +77,14 @@ $ composer create-project afnav/vanella-rest-api
 
   #### About the endpoint types [read, update, delete]
  - Endpoint type: read creates a ready-made endpoint app-generated code to view your records to your specified database table. And it already has built-in pagination as well. See the examples below. Supposing you already have records on your "users" database table.
-   http://yourwebsite.com/users/read/page/1
-   http://yourwebsite.com/users/read/page/2
+    - http://yourwebsite.com/users/read/page/1
+    - http://yourwebsite.com/users/read/page/2
  - Endpoint type: update creates a ready-made endpoint app-generated code to update records to your specified database table.
-   http://yourwebsite.com/users/update/{id}
-   http://yourwebsite.com/users/update/1
+    - http://yourwebsite.com/users/update/{id}
+    - http://yourwebsite.com/users/update/1
  - Endpoint type: delete creates a ready-made endpoint app-generated code to delete records to your specified database table.
-   http://yourwebsite.com/users/delete/{id}
-   http://yourwebsite.com/users/delete/1
+   - http://yourwebsite.com/users/delete/{id}
+   - http://yourwebsite.com/users/delete/1
 
 ## Activating Built-in Authentication
 
