@@ -40,11 +40,13 @@ $ composer create-project afnav/vanella-rest-api
     ```sh
      $ php vanella create:endpointgroup
     ``` 
- 2. After that, you can locate your class file in "/src/restful/SomeClassFileForYourEndpointGroup.php" See examples below.
-http://yourwebsite.com/users/read
-http://yourwebsite.com/users/create
-http://yourwebsite.com/users/update
-http://yourwebsite.com/users/delete
+ 2. After that, you can locate your class file in "/src/restful/SomeClassFileForYourEndpointGroup.php". See examples below.
+ - http://yourwebsite.com/users/read
+ - http://yourwebsite.com/users/create
+ - http://yourwebsite.com/users/update
+ - http://yourwebsite.com/users/delete
+ 
+ > The [read, create, update, delete] are built-in endpoints when you extend to the Vanella\Handlers\Restful class. So you really don't have to recreate these endpoints.
 
 ### Basic CLI Commands (Things you need to know before you continue)
  1. "/users" are the Endpoint Group which is and also should be the name of your class files. In this example, your class file should be named Users.php in your /src/resftul/Users.php directory.
@@ -57,8 +59,8 @@ http://yourwebsite.com/users/delete
      $ php vanella create:endpoint
     ``` 
  2. The app will create those endpoints for you. See examples below.
- - http://yourwebsite.com/users/yourcustomEndpoint
- - http://yourwebsite.com/users/anotherCustomEndpoint
+  - http://yourwebsite.com/users/yourcustomEndpoint
+  - http://yourwebsite.com/users/anotherCustomEndpoint
  3. There are 5 endpoint types that you can choose to generate the code when running create:endpoint which are [basic,read,create,update,delete]
  
     | TYPE | DESCRIPTION |
@@ -69,7 +71,7 @@ http://yourwebsite.com/users/delete
     | update | Creates a ready made endpoint app-generated code to update records to your specified database table. |
     | delete | Ceates a ready made endpoint app-generated code to delete records to your specified database table. |
 
-  - > Important: The endpoint group class files already extends to Vanella\Handlers\Restful class so you don't necessarily have to regenerate CRUD on your class files. 
+  - > Important: The endpoint group class files already extends to Vanella\Handlers\Restful class so you don't necessarily have to egenerate CRUD[create,read,update,delete] api endpoints on your class files. 
   - >But there maybe times, that you need to have some minor changes or customization to a certain endpoint so Vanella REST API helps you generate necessary sourcecode for that to get you started! 
   - > Again, just use your vanilla php to create that sophisticated API process! :p
 
