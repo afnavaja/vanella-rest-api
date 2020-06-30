@@ -63,13 +63,13 @@ $ composer create-project afnav/vanella-rest-api
   - http://yourwebsite.com/users/anotherCustomEndpoint
  3. There are five endpoint types that you can choose to generate the code when running create:endpoint which is [basic,read,create,update,delete]
  
-    | TYPE | DESCRIPTION |
-    | ------ | ------ |
-    | basic | Only creates an empty function which equals to the desired endpoint. From here, you can run native PHP code to your heart's content! |
-    | create | Creates a ready-made endpoint app-generated code to create records to your specified database table. |
-    | read | Creates a ready-made endpoint app-generated code to view your records to your specified database table. And it already has built-in pagination as well.|
-    | update | Creates a ready-made endpoint app-generated code to update records to your specified database table. |
-    | delete | Creates a ready-made endpoint app-generated code to delete records to your specified database table. |
+    | TYPE | DESCRIPTION | ACCEPTS METHOD |
+    | ------ | ------ | ------ |
+    | basic | Only creates an empty function which equals to the desired endpoint. From here, you can run native PHP code to your heart's content! | N/A |
+    | create | Creates a ready-made endpoint app-generated code to create records to your specified database table. | POST |
+    | read | Creates a ready-made endpoint app-generated code to view your records to your specified database table. And it already has built-in pagination as well.| GET |
+    | update | Creates a ready-made endpoint app-generated code to update records to your specified database table. | POST OR PUT
+    | delete | Creates a ready-made endpoint app-generated code to delete records to your specified database table. | DELETE
 
   - > Important: The endpoint group class files already extends to Vanella\Handlers\Restful class, so you don't necessarily have to generate CRUD[create,read,update,delete] API endpoints on your class files. 
   - >But there may be times that you need to have some minor changes or customization to a specific endpoint, so Vanella REST API helps you generate necessary sourcecode for that to get you started! 
