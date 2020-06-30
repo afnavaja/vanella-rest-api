@@ -18,6 +18,7 @@ interface RestfulInterface
 class Restful extends Authentication implements RestfulInterface
 {
     protected $tableName = "";
+    protected $request = [];
     protected $id = null;
     protected $defaultDbPrimaryKeyName = 'id';
     protected $defaultDbCreatedAtName = 'created_at';
@@ -37,6 +38,19 @@ class Restful extends Authentication implements RestfulInterface
         parent::__construct($args);
         $this->_loadConfig($args);
         date_default_timezone_set($this->restConfig['timezone']);
+    }
+
+    /**
+     * Connect to the database
+     */
+    protected function dbConn()
+    {
+        return new Database(
+            $this->dbConfig['db_host'],
+            $this->dbConfig['db_username'],
+            $this->dbConfig['db_password'],
+            $this->dbConfig['db_name']
+        );
     }
 
     /**
@@ -89,13 +103,7 @@ class Restful extends Authentication implements RestfulInterface
             $response_code = null;
 
             if ($_SERVER['REQUEST_METHOD'] == 'GET') {
-                $db = new Database(
-                    $this->dbConfig['db_host'],
-                    $this->dbConfig['db_username'],
-                    $this->dbConfig['db_password'],
-                    $this->dbConfig['db_name']
-                );
-
+                $db = $this->dbConn();
                 $db->select($this->tableName);
 
                 // Just in case the user passes an id
@@ -131,7 +139,7 @@ class Restful extends Authentication implements RestfulInterface
                 $response_code = 405; // Method not allowed
             }
 
-            $this->_displayResponse($result, $success, $message, $response_code, 'GET');
+            $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
 
         } catch (\Exception $e) {
             $this->_displayResponse(null, false, $e->getMessage(), 500, 'GET');
@@ -154,31 +162,25 @@ class Restful extends Authentication implements RestfulInterface
             $response_code = null;
 
             if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-                $post = $this->_cleanedPostData($_POST);
+                $data = $this->_cleanedData($this->request);
 
-                if (!$this->id && !empty($post)) { // Always check if the id is there
-
-                    $db = new Database(
-                        $this->dbConfig['db_host'],
-                        $this->dbConfig['db_username'],
-                        $this->dbConfig['db_password'],
-                        $this->dbConfig['db_name']
-                    );
+                if (!$this->id && !empty($data)) { // Always check if the id is there
+                    $db = $this->dbConn();
 
                     $date = new \DateTime();
-                    $_POST = array_merge($_POST, [
+                    $data = array_merge($data, [
                         $this->defaultDbCreatedAtName => $date->format('Y-m-d H:i:s'),
                         $this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s'),
                     ]);
 
                     // Insert the data
-                    $result = $db->insert($this->tableName, $post)->execute();
+                    $result = $db->insert($this->tableName, $data)->execute();
                     $success = true;
                     $message = 'Succesfully added record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $result . '.';
                     $message = (isset($this->defaultSuccessMessageCreate) ? $this->defaultSuccessMessageCreate : $message);
                     $response_code = 201; // Created
                 } else {
-                    if (empty($_POST)) {
+                    if (empty($this->request)) {
                         $message = 'No data has been passed.';
                         $response_code = 400; // Bad Request
                     }
@@ -188,7 +190,7 @@ class Restful extends Authentication implements RestfulInterface
                 $response_code = 405; // Method not allowed
             }
 
-            $this->_displayResponse($result, $success, $message, $response_code, 'POST');
+            $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
 
         } catch (\Exception $e) {
             $this->_displayResponse(null, false, $e->getMessage(), 500, 'POST');
@@ -209,23 +211,18 @@ class Restful extends Authentication implements RestfulInterface
             $message = null;
             $response_code = null;
 
-            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            if ($_SERVER['REQUEST_METHOD'] == 'PATCH' || $_SERVER['REQUEST_METHOD'] == 'PUT') {
 
                 if ($this->id) { // Always check if the id is there
-                    $db = new Database(
-                        $this->dbConfig['db_host'],
-                        $this->dbConfig['db_username'],
-                        $this->dbConfig['db_password'],
-                        $this->dbConfig['db_name']
-                    );
+                    $db = $this->dbConn();
 
                     $date = new \DateTime();
-                    $_POST = array_merge($_POST, [
+                    $data = array_merge($this->request, [
                         $this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s'),
                     ]);
 
                     // Update the data
-                    $db->update($this->tableName, $this->_cleanedPostData($_POST))
+                    $db->update($this->tableName, $this->_cleanedData($data))
                         ->where($this->defaultDbPrimaryKeyName, $this->id)
                         ->execute();
 
@@ -240,11 +237,11 @@ class Restful extends Authentication implements RestfulInterface
                 }
 
             } else {
-                $message = 'Only POST methods are allowed';
+                $message = 'Only PATCH methods are allowed';
                 $response_code = 405; // Method not allowed
             }
 
-            $this->_displayResponse($result, $success, $message, $response_code, 'POST');
+            $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
 
         } catch (\Exception $e) {
             $this->_displayResponse(null, false, $e->getMessage(), 500, 'GET');
@@ -264,15 +261,10 @@ class Restful extends Authentication implements RestfulInterface
             $message = null;
             $response_code = null;
 
-            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            if ($_SERVER['REQUEST_METHOD'] == 'DELETE') {
 
                 if ($this->id) { // Always check if the id is there
-                    $db = new Database(
-                        $this->dbConfig['db_host'],
-                        $this->dbConfig['db_username'],
-                        $this->dbConfig['db_password'],
-                        $this->dbConfig['db_name']
-                    );
+                    $db = $this->dbConn();
 
                     // Get the results
                     $db->delete($this->tableName)
@@ -290,11 +282,11 @@ class Restful extends Authentication implements RestfulInterface
                 }
 
             } else {
-                $message = 'Only POST methods are allowed';
+                $message = 'Only DELETE methods are allowed';
                 $response_code = 405; // Method not allowed
             }
 
-            $this->_displayResponse($result, $success, $message, $response_code, 'POST');
+            $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
 
         } catch (\Exception $e) {
             $this->_displayResponse(null, false, $e->getMessage(), 500, 'GET');
@@ -349,13 +341,7 @@ class Restful extends Authentication implements RestfulInterface
      */
     protected function _totalItemCount()
     {
-        $db = new Database(
-            $this->dbConfig['db_host'],
-            $this->dbConfig['db_username'],
-            $this->dbConfig['db_password'],
-            $this->dbConfig['db_name']
-        );
-
+        $db = $this->dbConn();
         $result = $db->select($this->tableName, 'COUNT(' . $this->defaultDbPrimaryKeyName . ') as count')->one();
 
         return $result['count'];
@@ -367,16 +353,16 @@ class Restful extends Authentication implements RestfulInterface
      *
      * @return array
      */
-    protected function _cleanedPostData()
+    protected function _cleanedData($data = [])
     {
-        $data = [];
-        foreach ($_POST as $key => $value) {
+        $newData = [];
+        foreach ($data as $key => $value) {
             if (!in_array($key, $this->columnPresets)) {
-                $data[$key] = $value;
+                $newData[$key] = $value;
             }
         }
 
-        return $data;
+        return $newData;
     }
 
     /**
@@ -388,6 +374,9 @@ class Restful extends Authentication implements RestfulInterface
      */
     private function _loadConfig($args = [])
     {
+        // Load request data
+        $this->requestData();
+
         // Register this predefined enpoint
         $this->_registerEndpointToAccessRule('endpoints', [
             'isAccessPageViaAccessToken' => false,
@@ -425,5 +414,13 @@ class Restful extends Authentication implements RestfulInterface
         }
 
         return $data;
+    }
+
+    /**
+     * Get the request data
+     */
+    protected function requestData()
+    {
+        parse_str(file_get_contents('php://input'), $this->request);
     }
 }

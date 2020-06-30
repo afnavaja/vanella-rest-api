@@ -302,7 +302,8 @@ class Database
      * @return array
      */
     public function all()
-    {
+    {   
+        $data = [];
         try {
             $statement = $this->conn()->prepare($this->_query);
             $statement->execute();
@@ -328,6 +329,7 @@ class Database
      */
     public function one()
     {
+        $data = [];
         try {
             $statement = $this->conn()->prepare($this->_query);
             $statement->execute();
