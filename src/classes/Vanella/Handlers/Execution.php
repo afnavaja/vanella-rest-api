@@ -10,6 +10,9 @@ class Execution
 
     protected $_args;
 
+    /**
+     * Default constructor
+     */
     public function __construct($args = [])
     {   
         $this->_args = $args;
@@ -49,10 +52,16 @@ class Execution
                         'isMethodExecuted' => !empty($function) ? true : false,
                         'config' => $this->_args['config']
                     ]);
-
+                     
                     // Dynamically execute the function
-                    if (!empty($function)) {
+                    if (!empty($function) && method_exists($class, $function)) {
                         $object->$function();
+                    }
+                    else {
+                        Helpers::renderAsJson([
+                            'success' => false,
+                            'message' => 'The endpoint does not exist!'
+                        ], 400);
                     }
                 } else {
                     Controller::render(__DIR__ . '/views/endpoint.notfound');

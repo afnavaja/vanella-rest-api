@@ -102,43 +102,41 @@ class Restful extends Authentication implements RestfulInterface
             $message = null;
             $response_code = null;
 
-            if ($_SERVER['REQUEST_METHOD'] == 'GET') {
-                $db = $this->dbConn();
-                $db->select($this->tableName);
+            // Returns a json exception for the allowed access methods
+            $this->allowAccess('GET');
 
-                // Just in case the user passes an id
-                if ($this->id) {
-                    $db->where($this->defaultDbPrimaryKeyName, $this->id);
-                }
+            $db = $this->dbConn();
+            $db->select($this->tableName);
 
-                // This where only performs equality
-                if (!empty($_GET)) {
-                    foreach ($_GET as $column => $value) {
-                        if (!in_array($column, $this->columnPresets)) {
-                            $db->where($column, $value);
-                        }
-                    }
-                }
-
-                // Default limit is 10 and offset is 0
-                // Only activate this if there is a pagination
-                if ($this->pageNumber) {
-                    $offset = ($this->pageNumber * $this->limit) - $this->limit;
-                    $db->limit(intval($this->limit))->offset(intval($offset));
-                } else {
-                    $db->limit($this->limit);
-                }
-
-                // Get the results
-                $result = $db->all();
-                $success = true;
-                $message = (isset($this->defaultSuccessMessageRead) ? $this->defaultSuccessMessageRead : $message);
-                $response_code = 200; // Ok
-            } else {
-                $message = 'Only GET methods are allowed';
-                $response_code = 405; // Method not allowed
+            // Just in case the user passes an id
+            if ($this->id) {
+                $db->where($this->defaultDbPrimaryKeyName, $this->id);
             }
 
+            // This where only performs equality
+            if (!empty($_GET)) {
+                foreach ($_GET as $column => $value) {
+                    if (!in_array($column, $this->columnPresets)) {
+                        $db->where($column, $value);
+                    }
+                }
+            }
+
+            // Default limit is 10 and offset is 0
+            // Only activate this if there is a pagination
+            if ($this->pageNumber) {
+                $offset = ($this->pageNumber * $this->limit) - $this->limit;
+                $db->limit(intval($this->limit))->offset(intval($offset));
+            } else {
+                $db->limit($this->limit);
+            }
+
+            // Get the results
+            $result = $db->all();
+            $success = true;
+            $message = 'Successfully retrieved records';
+            $message = (isset($this->defaultSuccessMessageRead) ? $this->defaultSuccessMessageRead : $message);
+            $response_code = 200; // Ok
             $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
 
         } catch (\Exception $e) {
@@ -156,41 +154,41 @@ class Restful extends Authentication implements RestfulInterface
     {
         try {
 
-            $result = null;
-            $success = false;
-            $message = null;
-            $response_code = null;
+            // Blocks the rest of the execution if request method does not match
+            $this->allowAccess('POST');
 
-            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-                $data = $this->_cleanedData($this->request);
+            // Blocks the rest of the execution if the request is empty
+            $this->_checkRequestEmpty();
 
-                if (!$this->id && !empty($data)) { // Always check if the id is there
-                    $db = $this->dbConn();
+            // Prepare the data
+            $date = new \DateTime();
+            $data = $this->_cleanedData($this->request);
 
-                    $date = new \DateTime();
-                    $data = array_merge($data, [
-                        $this->defaultDbCreatedAtName => $date->format('Y-m-d H:i:s'),
-                        $this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s'),
-                    ]);
-
-                    // Insert the data
-                    $result = $db->insert($this->tableName, $data)->execute();
-                    $success = true;
-                    $message = 'Succesfully added record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $result . '.';
-                    $message = (isset($this->defaultSuccessMessageCreate) ? $this->defaultSuccessMessageCreate : $message);
-                    $response_code = 201; // Created
-                } else {
-                    if (empty($this->request)) {
-                        $message = 'No data has been passed.';
-                        $response_code = 400; // Bad Request
-                    }
-                }
-            } else {
-                $message = 'Only POST methods are allowed';
-                $response_code = 405; // Method not allowed
+            // If defaultDbCreatedAtName field is not specified
+            if ($this->defaultDbCreatedAtName) {
+                $data = array_merge(
+                    $data,
+                    [$this->defaultDbCreatedAtName => $date->format('Y-m-d H:i:s')]
+                );
             }
 
-            $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
+            // If defaultDbUpdatedAtName field is not specified
+            if ($this->defaultDbUpdatedAtName) {
+                $data = array_merge(
+                    $data,
+                    [$this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s')]
+                );
+            }
+
+            // Insert the data
+            $result = $this->dbConn()->insert($this->tableName, $data)->execute();
+            $success = true;
+            $message = 'Succesfully added record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $result . '.';
+            $message = (isset($this->defaultSuccessMessageCreate) ? $this->defaultSuccessMessageCreate : $message);
+            $response_code = 201; // Created
+
+            // Display the response
+            $this->_displayResponse(['id' => $result], $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
 
         } catch (\Exception $e) {
             $this->_displayResponse(null, false, $e->getMessage(), 500, 'POST');
@@ -206,42 +204,22 @@ class Restful extends Authentication implements RestfulInterface
     {
         try {
 
-            $result = null;
-            $success = false;
-            $message = null;
-            $response_code = null;
+            // Blocks the rest of the execution if request method does not match
+            $this->allowAccess(['PATCH', 'PUT']);
 
-            if ($_SERVER['REQUEST_METHOD'] == 'PATCH' || $_SERVER['REQUEST_METHOD'] == 'PUT') {
+            // Blocks the rest of the execution if the id is not
+            // passed in http://yoursite.com/endpointgroup/endpoint/{id}
+            $this->_checkIdIsPassed();
 
-                if ($this->id) { // Always check if the id is there
-                    $db = $this->dbConn();
+            // Blocks the rest of the execution
+            // if the record does not exists in the database
+            $this->_checkRecordExists();
 
-                    $date = new \DateTime();
-                    $data = array_merge($this->request, [
-                        $this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s'),
-                    ]);
+            // Blocks the rest of the execution if the request body is empty
+            $this->_checkRequestEmpty();
 
-                    // Update the data
-                    $db->update($this->tableName, $this->_cleanedData($data))
-                        ->where($this->defaultDbPrimaryKeyName, $this->id)
-                        ->execute();
-
-                    $result = ['id' => $this->id];
-                    $success = true;
-                    $message = 'Succesfully updated record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $this->id . '.';
-                    $message = (isset($this->defaultSuccessMessageUpdate) ? $this->defaultSuccessMessageUpdate : $message);
-                    $response_code = 200; // Ok
-                } else {
-                    $message = 'Missing ' . $this->defaultDbPrimaryKeyName . ' field value.';
-                    $response_code = 400; // Bad request
-                }
-
-            } else {
-                $message = 'Only PATCH methods are allowed';
-                $response_code = 405; // Method not allowed
-            }
-
-            $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
+            // Updates the record
+            $this->_updateById();
 
         } catch (\Exception $e) {
             $this->_displayResponse(null, false, $e->getMessage(), 500, 'GET');
@@ -256,40 +234,130 @@ class Restful extends Authentication implements RestfulInterface
     public function delete()
     {
         try {
-            $result = null;
-            $success = null;
-            $message = null;
-            $response_code = null;
+            // Blocks the rest of the execution if request method does not match
+            $this->allowAccess(['PATCH', 'PUT']);
 
-            if ($_SERVER['REQUEST_METHOD'] == 'DELETE') {
+            // Blocks the rest of the execution if the id is not
+            // passed in http://yoursite.com/endpointgroup/endpoint/{id}
+            $this->_checkIdIsPassed();
 
-                if ($this->id) { // Always check if the id is there
-                    $db = $this->dbConn();
+            // Blocks the rest of the execution
+            // if the record does not exists in the database
+            $this->_checkRecordExists();
 
-                    // Get the results
-                    $db->delete($this->tableName)
-                        ->where($this->defaultDbPrimaryKeyName, $this->id)
-                        ->execute();
-
-                    $result = ['id' => $this->id];
-                    $success = true;
-                    $message = 'Succesfully deleted record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $this->id . '.';
-                    $message = (isset($this->defaultSuccessMessageDelete) ? $this->defaultSuccessMessageDelete : $message);
-                    $response_code = 200; // Ok
-                } else {
-                    $message = 'Missing ' . $this->defaultDbPrimaryKeyName . ' field value.';
-                    $response_code = 400; // Bad request
-                }
-
-            } else {
-                $message = 'Only DELETE methods are allowed';
-                $response_code = 405; // Method not allowed
-            }
-
-            $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
+            // Deletes the record
+            $this->_deleteById();
 
         } catch (\Exception $e) {
             $this->_displayResponse(null, false, $e->getMessage(), 500, 'GET');
+        }
+    }
+
+    /**
+     * Updates by id
+     */
+    protected function _updateById()
+    {
+        // Prepare the data to be updated
+        $date = new \DateTime();
+
+        $data = $this->_cleanedData($this->request);
+
+        // If defaultDbUpdatedAtName field is not specified
+        if ($this->defaultDbUpdatedAtName) {
+            $data = array_merge(
+                $data,
+                [$this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s')]
+            );
+        }
+
+        // Update the data
+        $this->dbConn()
+            ->update($this->tableName, $data)
+            ->where($this->defaultDbPrimaryKeyName, $this->id)
+            ->execute();
+
+        // Data to be passed in response
+        $result = ['id' => $this->id];
+        $defaultMessage = 'Succesfully updated record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $this->id . '.';
+        $message = (isset($this->defaultSuccessMessageUpdate) ? $this->defaultSuccessMessageUpdate : $defaultMessage);
+
+        // Display the response
+        $this->_displayResponse(
+            $result,
+            true, // Success status
+            $message, // Message prompt
+            200, // Response code
+            $_SERVER['REQUEST_METHOD']
+        );
+    }
+
+    /**
+     * Deletes by id
+     *
+     * @return void
+     */
+    protected function _deleteById()
+    {
+        // Delete the record
+        $this->dbConn()
+            ->delete($this->tableName)
+            ->where($this->defaultDbPrimaryKeyName, $this->id)
+            ->execute();
+
+        $result = ['id' => $this->id];
+        $success = true;
+        $message = 'Succesfully deleted record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $this->id . '.';
+        $message = (isset($this->defaultSuccessMessageDelete) ? $this->defaultSuccessMessageDelete : $message);
+        $response_code = 200; // Ok
+
+        $this->_displayResponse($result, $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
+    }
+
+    /**
+     * Checks if the id is passed and has value
+     */
+    protected function _checkIdIsPassed()
+    {
+        // Block the execution if the id is not there
+        if (!$this->id) {
+            Helpers::renderAsJson([
+                'success' => false,
+                'message' => 'Missing ' . $this->defaultDbPrimaryKeyName . ' field value.',
+            ], 400); // Bad request
+        }
+    }
+
+    /**
+     * Checks if the record exists
+     */
+    protected function _checkRecordExists()
+    {
+        $db = $this->dbConn();
+        $record = $db->select($this->tableName)
+            ->where($this->defaultDbPrimaryKeyName, $this->id)
+            ->one();
+
+        // Block the execution if the record does not exist
+        if (empty($record)) {
+            Helpers::renderAsJson([
+                'success' => false,
+                'message' => 'The record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $this->id . ' does not exists.',
+            ], 400);
+        }
+    }
+
+    /**
+     * Checks if the request is empty
+     */
+    protected function _checkRequestEmpty()
+    {
+        // Block the execution if the request is empty
+        if (empty($this->request)) {
+            Helpers::renderAsJson([
+                'success' => false,
+                'message' => 'No data has been passed.',
+            ], 400); // Bad request
         }
     }
 

@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="container">
-        <h2>API Endpoint does not exist.</h2>
+        <h2>API endpoint group does not exist.</h2>
     </div>
 </body>
 </html>

@@ -8,6 +8,7 @@ use Vanella\Handlers\Entrypoint;
 
 class Authentication extends Entrypoint
 {
+    protected $activeAuthClientEndpointGroup = 'Auth';
     protected $isAuthActivated;
     protected $authEndpointList;
     protected $authConfig = ['default' => []];
@@ -49,13 +50,13 @@ class Authentication extends Entrypoint
         Helpers::run_child_method($this, 'accessRule');
 
         // Turn this on if you want authentication on this endpoint group.
-        $this->isAuthActivated = isset($this->authConfig['default']['isAuthActivated']) ? $this->authConfig['default']['isAuthActivated']:null;
+        $this->isAuthActivated = isset($this->authConfig['default']['isAuthActivated']) ? $this->authConfig['default']['isAuthActivated'] : null;
 
         // Set to true if you want more detailed json response for the authentication handler
-        $this->isAuthInDebugMode = isset($this->authConfig['default']['isAuthInDebugMode']) ? $this->authConfig['default']['isAuthInDebugMode']:null;
+        $this->isAuthInDebugMode = isset($this->authConfig['default']['isAuthInDebugMode']) ? $this->authConfig['default']['isAuthInDebugMode'] : null;
 
         // Turn this on to enable custom authentication
-        $this->enableCustomAuthentication = isset($this->authConfig['default']['enableCustomAuthentication']) ? $this->authConfig['default']['enableCustomAuthentication']:null;
+        $this->enableCustomAuthentication = isset($this->authConfig['default']['enableCustomAuthentication']) ? $this->authConfig['default']['enableCustomAuthentication'] : null;
 
         // This is to override Authentication config class from the child class
         Helpers::run_child_method($this, 'defaultConfig');
@@ -95,7 +96,7 @@ class Authentication extends Entrypoint
 
                 $baseUrl = Url::baseUrl();
                 $endpointGroup = $this->endpointGroup;
-                $endpointUrl = $baseUrl . $endpointGroup . '/' . $this->endpoint;
+                $endpointUrl = $baseUrl . strtolower($endpointGroup) . '/' . $this->endpoint;
 
                 $authStatusResponse = array_merge([
                     'message' => 'The ' . $endpointUrl . ' endpoint does not have an access rule. Please add the access rule on this endpoint.',
@@ -115,6 +116,7 @@ class Authentication extends Entrypoint
                         ], $authStatusResponse);
                         $this->isAuthenticationSuccessful = true;
                         $responseCode = 200;
+
                     } else { //
                         $authStatusResponse = array_merge([
                             'message' => 'You are not allowed to access this resource',
@@ -161,7 +163,7 @@ class Authentication extends Entrypoint
                 if (isset($header['Authorization'])) {
                     $token = explode(' ', $header['Authorization']);
 
-                    if (isset($token[0]) == 'Bearer' && isset($token[1])) {
+                    if (isset($token[0]) && $token[0] == 'Bearer' && isset($token[1])) {
                         $this->accessToken = $token[1];
                         $extractedAuthConfig = $this->_extractAuthConfig();
 
@@ -182,6 +184,12 @@ class Authentication extends Entrypoint
 
                             $this->isAuthenticationSuccessful = false;
                         }
+                    } elseif (isset($token[0]) && $token[0] == 'Basic' && isset($token[1])) {
+                        $this->allowAccess('POST');
+                        Helpers::renderAsJson([
+                            'tokens' => $token,
+                            'tok' => $this->accessToken,
+                        ]);
                     }
                 }
                 break;
@@ -236,8 +244,8 @@ class Authentication extends Entrypoint
 
         // Load the auth config from config/authentication.php
         $authConfig = $this->_getActiveConfig(
-            isset($this->authConfig['default']['activeAuthName']) ? $this->authConfig['default']['activeAuthName']:null,
-            isset($this->authConfig['default']['authList']) ? $this->authConfig['default']['authList']:[],
+            isset($this->authConfig['default']['activeAuthName']) ? $this->authConfig['default']['activeAuthName'] : null,
+            isset($this->authConfig['default']['authList']) ? $this->authConfig['default']['authList'] : [],
             'name'
         );
 
@@ -295,5 +303,32 @@ class Authentication extends Entrypoint
             'endpoint' => $this->endpoint,
             'isAuthenticationSuccessful' => $this->isAuthenticationSuccessful,
         ];
+    }
+
+    /**
+     * Must pass either GET,POST,PUT,PATCH,DELETE,HEAD
+     * in the $accessType methods
+     *
+     * @param mixed $accessType
+     *
+     * @return void
+     */
+    protected function allowAccess($accessType)
+    {
+        if (is_array($accessType)) {
+            if (!in_array($_SERVER['REQUEST_METHOD'], $accessType)) {
+                Helpers::renderAsJson([
+                    'success' => false,
+                    'message' => 'Only [' . implode(' | ', $accessType) . '] methods are allowed!',
+                ]);
+            }
+        } else {
+            if ($_SERVER['REQUEST_METHOD'] != $accessType) {
+                Helpers::renderAsJson([
+                    'success' => false,
+                    'message' => 'Only ' . $accessType . ' methods are allowed!',
+                ]);
+            }
+        }
     }
 }
