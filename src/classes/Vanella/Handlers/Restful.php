@@ -32,7 +32,7 @@ class Restful extends Authentication implements RestfulInterface
     protected $pageNumber;
     protected $limit = 10;
     protected $totalPages;
-    private $columnPresets = ['limit', 'page', 'total_items', 'total_pages'];
+    protected $columnPresets = ['limit', 'page', 'total_items', 'total_pages'];
 
     public function __construct($args = [])
     {
@@ -233,7 +233,7 @@ class Restful extends Authentication implements RestfulInterface
     {
         try {
             // Blocks the rest of the execution if request method does not match
-            $this->allowAccess(['PATCH', 'PUT']);
+            $this->allowAccess(['DELETE']);
 
             // Blocks the rest of the execution if the id is not
             // passed in http://yoursite.com/endpointgroup/endpoint/{id}
