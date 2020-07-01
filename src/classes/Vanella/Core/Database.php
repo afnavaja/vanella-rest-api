@@ -2,8 +2,8 @@
 
 namespace Vanella\Core;
 
-use Vanella\Handlers\Helpers;
 use PDO;
+use Vanella\Handlers\Helpers;
 
 class Database
 {
@@ -170,7 +170,7 @@ class Database
      * @param string $column
      * @param string $value
      * @param string $operator
-     * 
+     *
      * @return object
      */
     public function andWhere($fieldName, $value, $operator = '=')
@@ -185,7 +185,7 @@ class Database
      * @param string $column
      * @param string $value
      * @param string $operator
-     * 
+     *
      * @return $this
      */
     public function orWhere($fieldName, $value, $operator = '=')
@@ -201,7 +201,7 @@ class Database
      * @param string $firstTableColumn
      * @param string $secondTable
      * @param string $secondTableColumn
-     * 
+     *
      * @return $this
      */
     public function innerJoin($firstTable, $firstTableColumn, $secondTable, $secondTableColumn)
@@ -217,7 +217,7 @@ class Database
      * @param string $firstTableColumn
      * @param string $secondTable
      * @param string $secondTableColumn
-     * 
+     *
      * @return $this
      */
     public function leftJoin($firstTable, $firstTableColumn, $secondTable, $secondTableColumn)
@@ -233,7 +233,7 @@ class Database
      * @param string $firstTableColumn
      * @param string $secondTable
      * @param string $secondTableColumn
-     * 
+     *
      * @return $this
      */
     public function rightJoin($firstTable, $firstTableColumn, $secondTable, $secondTableColumn)
@@ -247,7 +247,7 @@ class Database
      *
      * @param string $columns
      * @param string $sort
-     * 
+     *
      * @return $this
      */
     public function orderBy($columns, $sort = 'ASC')
@@ -302,7 +302,7 @@ class Database
      * @return array
      */
     public function all()
-    {   
+    {
         $data = [];
         try {
             $statement = $this->conn()->prepare($this->_query);
@@ -339,6 +339,33 @@ class Database
             }
 
             return !empty($data[0]) ? $data[0] : [];
+        } catch (\PDOException $e) {
+            Helpers::renderAsJson([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     *  Shows the columns of the table
+     *
+     *  @param string $tableName
+     *
+     *  @return array
+     */
+    public function tableColumns($tableName)
+    {
+        try {
+            $statement = $this->conn()->prepare('SHOW COLUMNS FROM ' . $tableName);
+            $statement->execute();
+
+            while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
+                $data[] = $row;
+            }
+
+            return !empty($data) ? $data : [];
+
         } catch (\PDOException $e) {
             Helpers::renderAsJson([
                 'success' => false,

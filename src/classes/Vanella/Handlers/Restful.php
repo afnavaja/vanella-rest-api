@@ -18,6 +18,7 @@ interface RestfulInterface
 class Restful extends Authentication implements RestfulInterface
 {
     protected $tableName = "";
+    protected $tableColumns = [];
     protected $request = [];
     protected $id = null;
     protected $defaultDbPrimaryKeyName = 'id';
@@ -162,7 +163,9 @@ class Restful extends Authentication implements RestfulInterface
 
             // Prepare the data
             $date = new \DateTime();
-            $data = $this->_cleanedData($this->request);
+
+            //Remove data if it is in column preset
+            $data = $this->_cleanedData($this->request, $this->columnPresets, true);
 
             // If defaultDbCreatedAtName field is not specified
             if ($this->defaultDbCreatedAtName) {
@@ -172,23 +175,18 @@ class Restful extends Authentication implements RestfulInterface
                 );
             }
 
-            // If defaultDbUpdatedAtName field is not specified
-            if ($this->defaultDbUpdatedAtName) {
-                $data = array_merge(
-                    $data,
-                    [$this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s')]
-                );
-            }
+            //Remove data if not in table columns
+            $data = $this->_cleanedData($data, $this->tableColumns, false);
 
             // Insert the data
-            $result = $this->dbConn()->insert($this->tableName, $data)->execute();
+            $id = $this->dbConn()->insert($this->tableName, $data)->execute();
             $success = true;
-            $message = 'Succesfully added record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $result . '.';
+            $message = 'Succesfully added record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $id . '.';
             $message = (isset($this->defaultSuccessMessageCreate) ? $this->defaultSuccessMessageCreate : $message);
             $response_code = 201; // Created
 
             // Display the response
-            $this->_displayResponse(['id' => $result], $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
+            $this->_displayResponse(['id' => $id], $success, $message, $response_code, $_SERVER['REQUEST_METHOD']);
 
         } catch (\Exception $e) {
             $this->_displayResponse(null, false, $e->getMessage(), 500, 'POST');
@@ -261,7 +259,8 @@ class Restful extends Authentication implements RestfulInterface
         // Prepare the data to be updated
         $date = new \DateTime();
 
-        $data = $this->_cleanedData($this->request);
+        //Remove data if it is in column preset
+        $data = $this->_cleanedData($this->request, $this->columnPresets, true);
 
         // If defaultDbUpdatedAtName field is not specified
         if ($this->defaultDbUpdatedAtName) {
@@ -270,6 +269,9 @@ class Restful extends Authentication implements RestfulInterface
                 [$this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s')]
             );
         }
+
+        //Remove data if not in table columns
+        $data = $this->_cleanedData($data, $this->tableColumns, false);
 
         // Update the data
         $this->dbConn()
@@ -416,17 +418,25 @@ class Restful extends Authentication implements RestfulInterface
     }
 
     /**
-     * Only includes those values that do not belong
-     * in the restfulhandler column preset
+     * Only includes/uninclude those values that do not belong
+     * in the arrayHayStack
      *
      * @return array
      */
-    protected function _cleanedData($data = [])
+    protected function _cleanedData($data = [], $arrayHayStack = [], $reverse = true)
     {
         $newData = [];
         foreach ($data as $key => $value) {
-            if (!in_array($key, $this->columnPresets)) {
-                $newData[$key] = $value;
+            if ($reverse) {
+                // If not in the list of $arrayHayStack include
+                if (!in_array($key, $arrayHayStack)) {
+                    $newData[$key] = $value;
+                }
+            } else {
+                // If it is in the list of $arrayHayStack include
+                if (in_array($key, $arrayHayStack)) {
+                    $newData[$key] = $value;
+                }
             }
         }
 
@@ -444,6 +454,7 @@ class Restful extends Authentication implements RestfulInterface
     {
         // Load request data
         $this->requestData();
+        $this->tableColumns = $this->_getTableColumns();
 
         // Register this predefined enpoint
         $this->_registerEndpointToAccessRule('endpoints', [
@@ -478,6 +489,23 @@ class Restful extends Authentication implements RestfulInterface
                 $data[$ctr]['name'] = $value->name;
                 $data[$ctr]['url'] = Url::baseUrl() . strtolower($this->endpointGroup) . '/' . $value->name;
                 $ctr++;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Get the tablecolumns of this table
+     */
+    protected function _getTableColumns()
+    {
+        $data = [];
+        $db = $this->dbConn()->tableColumns($this->tableName);
+
+        if (!empty($db)) {
+            foreach ($db as $items) {
+                $data[] = $items['Field'];
             }
         }
 
