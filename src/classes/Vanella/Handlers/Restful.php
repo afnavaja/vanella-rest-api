@@ -306,10 +306,10 @@ class Restful extends Authentication implements RestfulInterface
     {
         // Block the execution if the id is not there
         if (!$this->id) {
-            Helpers::renderAsJson([
+            Helpers::renderAsJson(array_merge([
                 'success' => false,
                 'message' => 'Missing ' . $this->defaultDbPrimaryKeyName . ' field value.',
-            ], 400); // Bad request
+            ], $this->_addRefreshTokenToResponse()), 400); // Bad request
         }
     }
 
@@ -325,10 +325,10 @@ class Restful extends Authentication implements RestfulInterface
 
         // Block the execution if the record does not exist
         if (empty($record)) {
-            Helpers::renderAsJson([
+            Helpers::renderAsJson(array_merge([
                 'success' => false,
                 'message' => 'The record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $this->id . ' does not exists.',
-            ], 400);
+            ], $this->_addRefreshTokenToResponse()), 400);
         }
     }
 
@@ -363,23 +363,14 @@ class Restful extends Authentication implements RestfulInterface
                 'limit' => $this->limit,
             ], $response);
         }
-
-        // Adds an additional messages in the request body used in debugging
-        if ($this->isAuthInDebugMode) {
-            $response = array_merge(['authStatusResponse' => $this->authStatusResponse], $response);
-        }
-
-        // Add the refresh token to persist in each request
-        if ($this->isRefreshTokenActivated && $this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
-            $refreshToken = $this->_getJWTRefreshToken($this->accessToken);
-            $response = array_merge($refreshToken, $response);
-        }
-
+        
+        $response = array_merge($response, $this->_addRefreshTokenToResponse());
+        $response = array_merge($response, $this->_addAuthStatusResponse());
         $response = isset($data) ? array_merge(['data' => $data], $response) : $response;
 
         Helpers::renderAsJson($response, $responseCode, $allowedMethods, $allowedOrigin);
     }
-
+   
     /**
      * Returns the total item of the table
      *

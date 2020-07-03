@@ -22,7 +22,7 @@ class Authentication extends Entrypoint
     protected $isAuthenticationSuccessful;
     protected $customAuthenticationMethod;
     protected $enableCustomAuthentication = false;
-    protected $authStatusResponse;
+    protected $authStatusResponse = [];
     protected $isAuthStatusResponseDisplayed = false;
     protected $isAuthInDebugMode = false;
     protected $accessToken;
@@ -136,14 +136,13 @@ class Authentication extends Entrypoint
         // Set the access token if we could grab one
         $this->_setAccessToken();
 
-        $authStatusResponse = [];
         $responseCode = 200;
 
         // If auth config is missing
         if (!$this->authConfig['access_rule']) {
-            $authStatusResponse = array_merge([
+            $this->authStatusResponse = array_merge([
                 'message' => 'Please specify endpoint names to be authenticated. You set the isAuthactivated to true, therefore this API framework requires you to specify the access rule for each endpoints. See the endpoint list below.',
-            ], $authStatusResponse);
+            ], $this->authStatusResponse);
             $this->isAuthenticationSuccessful = true;
             $responseCode = 400; // Bad Request
         }
@@ -157,42 +156,37 @@ class Authentication extends Entrypoint
                 $endpointGroup = $this->endpointGroup;
                 $endpointUrl = $baseUrl . strtolower($endpointGroup) . '/' . $this->endpoint;
 
-                $authStatusResponse = array_merge([
+                $this->authStatusResponse = array_merge([
                     'message' => 'The ' . $endpointUrl . ' endpoint does not have an access rule. Please add the access rule on this endpoint.',
-                ], $authStatusResponse);
+                ], $this->authStatusResponse);
 
                 $this->isAuthenticationSuccessful = false;
                 $responseCode = 400; // Bad Request
-            } else { // If the curent enpoint access rule is set
+            }
 
-                // If the isAccessPageViaAccessToken is false
-                if (isset($this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken'])) {
+            // If the endpoint can be access without having the need of an Access Token
+            if (!$this->_isPageAccessibleViaAccessToken()) {
+                $this->authStatusResponse = array_merge([
+                    'message' => 'The ' . $this->endpoint . ' endpoint is allowed to be access without an access token. Do not pass an access token.',
+                ], $this->authStatusResponse);
+                $this->isAuthenticationSuccessful = true;
+                $responseCode = 200;
 
-                    // If the endpoint can be access without having the need of an Access Token
-                    if (!$this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
-                        $authStatusResponse = array_merge([
-                            'message' => 'The ' . $this->endpoint . ' endpoint is allowed to be access without an access token. Do not pass an access token.',
-                        ], $authStatusResponse);
-                        $this->isAuthenticationSuccessful = true;
-                        $responseCode = 200;
-
-                    } else {
-                        if (!$this->accessToken) {
-                            $authStatusResponse = array_merge([
-                                'message' => 'You are not allowed to access this resource',
-                            ], $authStatusResponse);
-                            $this->isAuthenticationSuccessful = false;
-                            $responseCode = 401; // Unauthorized
-                        }
-                    }
+            } else {
+                if (!$this->accessToken) {
+                    $this->authStatusResponse = array_merge([
+                        'message' => 'You are not allowed to access this resource',
+                    ], $this->authStatusResponse);
+                    $this->isAuthenticationSuccessful = false;
+                    $responseCode = 401; // Unauthorized
                 }
             }
-        }
 
-        // Built in process for the access_token.
-        // Read the access_token when not in Auth endpoint group
-        if ($this->endpointGroup !== 'Auth') {
-            $authStatusResponse = array_merge($this->_processHeaderAuthorization(), $authStatusResponse);
+            // Built in process for the access_token.
+            // Read the access_token when not in Auth endpoint group
+            if ($this->endpointGroup !== 'Auth') {
+                $this->authStatusResponse = array_merge($this->_processHeaderAuthorization(), $this->authStatusResponse);
+            }
         }
 
         // Run your custom authentication here
@@ -201,15 +195,12 @@ class Authentication extends Entrypoint
         }
 
         // Assign the auth response status
-        $authStatusResponse = $this->isAuthInDebugMode ? array_merge($authStatusResponse, $this->_setAuthenticationStatus()) : $authStatusResponse;
+        $this->authStatusResponse = $this->isAuthInDebugMode ? array_merge($this->authStatusResponse, $this->_setAuthenticationStatus()) : $this->authStatusResponse;
 
         // If authentication failed. Display this set of message.
         if (!$this->isAuthenticationSuccessful) {
-            Helpers::renderAsJson($authStatusResponse, $responseCode);
+            Helpers::renderAsJson(array_merge($this->authStatusResponse, $this->_addRefreshTokenToResponse()), $responseCode);
         }
-
-        // Set the authStatusResponse for this parent class
-        $this->authStatusResponse = $authStatusResponse;
     }
 
     /**
@@ -222,7 +213,6 @@ class Authentication extends Entrypoint
     protected function _processHeaderAuthorization($type = 'jwt')
     {
         // Get all headers that are sent
-        $header = apache_request_headers();
         $response = [];
 
         switch ($type) {
@@ -241,7 +231,7 @@ class Authentication extends Entrypoint
      */
     protected function _setAccessToken()
     {
-        if ($this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
+        if ($this->_isPageAccessibleViaAccessToken()) {
             $header = apache_request_headers();
             if (isset($header['Authorization'])) {
                 $token = explode(' ', $header['Authorization']);
@@ -307,6 +297,19 @@ class Authentication extends Entrypoint
             'app' => $app,
             'authConfig' => $authConfig,
         ];
+    }
+
+    /**
+     * Is page accessible via access token
+     */
+    protected function _isPageAccessibleViaAccessToken()
+    {
+        if (isset($this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken'])
+            && $this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -392,17 +395,17 @@ class Authentication extends Entrypoint
     {
         if (is_array($accessType)) {
             if (!in_array($_SERVER['REQUEST_METHOD'], $accessType)) {
-                Helpers::renderAsJson([
+                Helpers::renderAsJson(array_merge([
                     'success' => false,
                     'message' => 'Only [' . implode(' | ', $accessType) . '] methods are allowed!',
-                ]);
+                ], $this->_addRefreshTokenToResponse()));
             }
         } else {
             if ($_SERVER['REQUEST_METHOD'] != $accessType) {
-                Helpers::renderAsJson([
+                Helpers::renderAsJson(array_merge([
                     'success' => false,
                     'message' => 'Only ' . $accessType . ' methods are allowed!',
-                ]);
+                ], $this->_addRefreshTokenToResponse()));
             }
         }
     }
@@ -414,10 +417,10 @@ class Authentication extends Entrypoint
     {
         // Block the execution if the request is empty
         if (empty($this->request)) {
-            Helpers::renderAsJson([
+            Helpers::renderAsJson(array_merge([
                 'success' => false,
                 'message' => 'No data has been passed.',
-            ], 400); // Bad request
+            ], $this->_addRefreshTokenToResponse()), 400); // Bad request
         }
     }
 
@@ -526,7 +529,7 @@ class Authentication extends Entrypoint
     protected function _validateJWTAccessToken($accessToken)
     {
         try {
-            if ($this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
+            if ($this->_isPageAccessibleViaAccessToken()) {
                 $jwtDecoded = $this->_getJWTDecoded($accessToken);
                 return [
                     'success' => true,
@@ -534,16 +537,26 @@ class Authentication extends Entrypoint
                 ];
             }
         } catch (\Exception $e) {
-            Helpers::renderAsJson([
+            Helpers::renderAsJson(array_merge([
                 'success' => false,
-                'error' => $e->getMessage() . ' | Error in validating access token.',
-            ], 400);
+                'message' => $e->getMessage() . ' | The access token might me missing or invalid or expired.',
+            ], $this->_addRefreshTokenToResponse()), 401);
         }
 
         return [
             'success' => true,
             'jwtDecoded' => null,
         ];
+    }
+
+    protected function _pageNeedsAccessToken($accessToken)
+    {
+        if ($this->_isPageAccessibleViaAccessToken() && empty($accessToken)) {
+            Helpers::renderAsJson([
+                'success' => false,
+                'message' => 'This resource needs an access token!',
+            ], 401);
+        }
     }
 
     /**
@@ -555,11 +568,22 @@ class Authentication extends Entrypoint
      */
     protected function _getJWTDecoded($accessToken)
     {
-        $extractedAuthConfig = $this->_extractAuthConfig();
-        return JWT::decode(
-            $accessToken,
-            $extractedAuthConfig['authConfig']['secretKey'],
-            [$extractedAuthConfig['authConfig']['algo']]);
+
+        // Block the whole execution if the access token is not present
+        $this->_pageNeedsAccessToken($accessToken);
+        try {
+            $extractedAuthConfig = $this->_extractAuthConfig();
+            $jwtDecoded = JWT::decode(
+                $accessToken,
+                $extractedAuthConfig['authConfig']['secretKey'],
+                [$extractedAuthConfig['authConfig']['algo']]);
+            return $jwtDecoded;
+        } catch (\Exception $e) {
+            Helpers::renderAsJson(array_merge([
+                'success' => false,
+                'message' => $e->getMessage() . ' | The access token experienced an error in decoding.',
+            ]), 401);
+        }
     }
 
     /**
@@ -572,7 +596,7 @@ class Authentication extends Entrypoint
     {
         try {
 
-            if ($this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
+            if ($this->_isPageAccessibleViaAccessToken()) {
                 $success = false;
 
                 // Validate access token
@@ -584,17 +608,17 @@ class Authentication extends Entrypoint
                 // Decoded data from the previous authentication with all the payloads
                 $data = $jwtValidation['jwtDecoded'];
 
-                // Unset all of this since we are requesting a new one
-                unset($data->serverName);
-                unset($data->requestMethod);
-                unset($data->remoteAddrress);
-                unset($data->aud);
-                unset($data->iss);
-                unset($data->iat);
-                unset($data->nbf);
-                unset($data->exp);
+                if ($this->isAuthenticationSuccessful && !empty($data)) {
+                    // Unset all of this since we are requesting a new one
+                    unset($data->serverName);
+                    unset($data->requestMethod);
+                    unset($data->remoteAddrress);
+                    unset($data->aud);
+                    unset($data->iss);
+                    unset($data->iat);
+                    unset($data->nbf);
+                    unset($data->exp);
 
-                if ($this->isAuthenticationSuccessful) {
                     // Run the validations first
                     switch ($data->type) {
                         case self::AUTH_ENTITY_TYPE_CLIENT:
@@ -626,10 +650,45 @@ class Authentication extends Entrypoint
                 }
             }
         } catch (\Exception $e) {
-            Helpers::renderAsJson([
+            Helpers::renderAsJson(array_merge([
                 'success' => false,
-                'error' => $e->getMessage() . ' | Error in refreshing access token.',
-            ], 400);
+                'message' => $e->getMessage() . ' | Error in refreshing access token.',
+            ], $this->_addRefreshTokenToResponse()), 400);
+        }
+
+        return [];
+    }
+
+    /**
+     * Adds a refresh token in the response
+     *
+     * @return array
+     */
+    protected function _addRefreshTokenToResponse()
+    {
+        // Add the refresh token to persist in each request
+        if ($this->isRefreshTokenActivated && $this->_isPageAccessibleViaAccessToken()) {
+            return $this->_getJWTRefreshToken($this->accessToken);
+        }
+
+        return $this->isAuthActivated ? [
+            'warning' => [
+                'isAccessPageViaAccessToken' => false,
+                'message' => 'Please register this endpoint to access rule and set it to true to apply authentication to this endpoint.'
+            ]
+        ]:[];
+    }
+
+    /**
+     * Adds an additional messages in the request body used in debugging
+     *
+     * @return array
+     */
+    protected function _addAuthStatusResponse()
+    {
+
+        if ($this->isAuthInDebugMode) {
+            return ['authStatusResponse' => $this->authStatusResponse];
         }
 
         return [];
@@ -646,6 +705,6 @@ class Authentication extends Entrypoint
     {
         header('WWW-Authenticate: Basic realm="My Realm"');
         header('HTTP/1.0 401 Unauthorized');
-        Helpers::renderAsJson($data, 401);
+        Helpers::renderAsJson(array_merge($data, $this->_addRefreshTokenToResponse()), 401);
     }
 }
