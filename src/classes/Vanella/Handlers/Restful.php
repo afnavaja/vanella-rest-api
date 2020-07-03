@@ -3,7 +3,6 @@
 namespace Vanella\Handlers;
 
 use Vanella\Core\Controller;
-use Vanella\Core\Database;
 use Vanella\Core\Url;
 use Vanella\Handlers\Authentication;
 
@@ -17,9 +16,6 @@ interface RestfulInterface
 
 class Restful extends Authentication implements RestfulInterface
 {
-    protected $tableName = "";
-    protected $tableColumns = [];
-    protected $request = [];
     protected $id = null;
     protected $defaultDbPrimaryKeyName = 'id';
     protected $defaultDbCreatedAtName = 'created_at';
@@ -39,19 +35,6 @@ class Restful extends Authentication implements RestfulInterface
         parent::__construct($args);
         $this->_loadConfig($args);
         date_default_timezone_set($this->restConfig['timezone']);
-    }
-
-    /**
-     * Connect to the database
-     */
-    protected function dbConn()
-    {
-        return new Database(
-            $this->dbConfig['db_host'],
-            $this->dbConfig['db_username'],
-            $this->dbConfig['db_password'],
-            $this->dbConfig['db_name']
-        );
     }
 
     /**
@@ -350,20 +333,6 @@ class Restful extends Authentication implements RestfulInterface
     }
 
     /**
-     * Checks if the request is empty
-     */
-    protected function _checkRequestEmpty()
-    {
-        // Block the execution if the request is empty
-        if (empty($this->request)) {
-            Helpers::renderAsJson([
-                'success' => false,
-                'message' => 'No data has been passed.',
-            ], 400); // Bad request
-        }
-    }
-
-    /**
      * Renders the api response
      * for the restful class.
      *
@@ -395,8 +364,15 @@ class Restful extends Authentication implements RestfulInterface
             ], $response);
         }
 
+        // Adds an additional messages in the request body used in debugging
         if ($this->isAuthInDebugMode) {
             $response = array_merge(['authStatusResponse' => $this->authStatusResponse], $response);
+        }
+
+        // Add the refresh token to persist in each request
+        if ($this->isRefreshTokenActivated && $this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
+            $refreshToken = $this->_getJWTRefreshToken($this->accessToken);
+            $response = array_merge($refreshToken, $response);
         }
 
         $response = isset($data) ? array_merge(['data' => $data], $response) : $response;
@@ -452,8 +428,6 @@ class Restful extends Authentication implements RestfulInterface
      */
     private function _loadConfig($args = [])
     {
-        // Load request data
-        $this->requestData();
         $this->tableColumns = $this->_getTableColumns();
 
         // Register this predefined enpoint
@@ -510,13 +484,5 @@ class Restful extends Authentication implements RestfulInterface
         }
 
         return $data;
-    }
-
-    /**
-     * Get the request data
-     */
-    protected function requestData()
-    {
-        parse_str(file_get_contents('php://input'), $this->request);
     }
 }

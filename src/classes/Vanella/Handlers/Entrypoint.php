@@ -20,7 +20,8 @@ class Entrypoint {
     ];
     protected $dbConfig = [];
     protected $mainConfig = [];
-    protected $restConfig = [];
+    protected $restConfig = [];    
+    protected $request = [];
 
     public function __construct($args = [])
     {       
@@ -37,5 +38,16 @@ class Entrypoint {
         $this->mainConfig = $args['config']['main'];
         $this->dbConfig = $args['config']['database'][$this->mainConfig['active_env']];
         $this->restConfig = $args['config']['restful'];
+        
+        // Load request data
+        $this->requestData();
+    }
+
+    /**
+     * Get the request data
+     */
+    protected function requestData()
+    {
+        parse_str(file_get_contents('php://input'), $this->request);
     }
 }

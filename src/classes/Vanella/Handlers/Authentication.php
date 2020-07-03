@@ -3,13 +3,20 @@
 namespace Vanella\Handlers;
 
 use Firebase\JWT\JWT;
+use Vanella\Core\Database;
 use Vanella\Core\Url;
 use Vanella\Handlers\Entrypoint;
 
 class Authentication extends Entrypoint
 {
+    const AUTH_ENTITY_TYPE_CLIENT = 'client';
+    const AUTH_ENTITY_TYPE_USER = 'user';
+
+    protected $tableName = "";
+    protected $tableColumns = [];
     protected $activeAuthClientEndpointGroup = 'Auth';
     protected $isAuthActivated;
+    protected $isRefreshTokenActivated;
     protected $authEndpointList;
     protected $authConfig = ['default' => []];
     protected $isAuthenticationSuccessful;
@@ -19,6 +26,11 @@ class Authentication extends Entrypoint
     protected $isAuthStatusResponseDisplayed = false;
     protected $isAuthInDebugMode = false;
     protected $accessToken;
+    protected $extractedAuthConfig;
+    protected $clientId;
+    protected $clientSecret;
+    protected $username;
+    protected $password;
 
     /**
      * Constructor
@@ -29,6 +41,19 @@ class Authentication extends Entrypoint
     {
         parent::__construct($args);
         $this->_loadDefaultAuthConfig($args);
+    }
+
+    /**
+     * Connect to the database
+     */
+    protected function dbConn()
+    {
+        return new Database(
+            $this->dbConfig['db_host'],
+            $this->dbConfig['db_username'],
+            $this->dbConfig['db_password'],
+            $this->dbConfig['db_name']
+        );
     }
 
     /**
@@ -52,6 +77,9 @@ class Authentication extends Entrypoint
         // Turn this on if you want authentication on this endpoint group.
         $this->isAuthActivated = isset($this->authConfig['default']['isAuthActivated']) ? $this->authConfig['default']['isAuthActivated'] : null;
 
+        // Turn this on if you want refresh token to persist in every request
+        $this->isRefreshTokenActivated = isset($this->authConfig['default']['isRefreshTokenActivated']) ? $this->authConfig['default']['isRefreshTokenActivated'] : null;
+
         // Set to true if you want more detailed json response for the authentication handler
         $this->isAuthInDebugMode = isset($this->authConfig['default']['isAuthInDebugMode']) ? $this->authConfig['default']['isAuthInDebugMode'] : null;
 
@@ -64,7 +92,36 @@ class Authentication extends Entrypoint
         if ($this->isAuthActivated) {
             // Need to get the current Class and Function
             $this->authenticate();
+
+            if ($this->endpointGroup == 'Auth') {
+                $this->_getRequestClientApp();
+                $this->_getRequestUser();
+            }
         }
+    }
+
+    /**
+     * Get the clientApp from the request headers
+     */
+    protected function _getRequestClientApp()
+    {
+        // The clientId from the request header
+        $this->clientId = isset($_SERVER['PHP_AUTH_USER']) ? $_SERVER['PHP_AUTH_USER'] : null;
+
+        // The clientSecret from the request header
+        $this->clientSecret = isset($_SERVER['PHP_AUTH_PW']) ? $_SERVER['PHP_AUTH_PW'] : null;
+    }
+
+    /**
+     * Get the user credentials from the request body
+     */
+    protected function _getRequestUser()
+    {
+        // The username from the request body
+        $this->username = isset($this->request['username']) ? $this->request['username'] : null;
+
+        // The password from the request body
+        $this->password = isset($this->request['password']) ? $this->request['password'] : null;
     }
 
     /**
@@ -76,6 +133,8 @@ class Authentication extends Entrypoint
      */
     protected function authenticate()
     {
+        // Set the access token if we could grab one
+        $this->_setAccessToken();
 
         $authStatusResponse = [];
         $responseCode = 200;
@@ -117,12 +176,14 @@ class Authentication extends Entrypoint
                         $this->isAuthenticationSuccessful = true;
                         $responseCode = 200;
 
-                    } else { //
-                        $authStatusResponse = array_merge([
-                            'message' => 'You are not allowed to access this resource',
-                        ], $authStatusResponse);
-                        $this->isAuthenticationSuccessful = false;
-                        $responseCode = 401; // Unauthorized
+                    } else {
+                        if (!$this->accessToken) {
+                            $authStatusResponse = array_merge([
+                                'message' => 'You are not allowed to access this resource',
+                            ], $authStatusResponse);
+                            $this->isAuthenticationSuccessful = false;
+                            $responseCode = 401; // Unauthorized
+                        }
                     }
                 }
             }
@@ -151,6 +212,13 @@ class Authentication extends Entrypoint
         $this->authStatusResponse = $authStatusResponse;
     }
 
+    /**
+     * Process Header authorization
+     *
+     * @param string $type
+     *
+     * @return array
+     */
     protected function _processHeaderAuthorization($type = 'jwt')
     {
         // Get all headers that are sent
@@ -160,42 +228,28 @@ class Authentication extends Entrypoint
         switch ($type) {
             case 'jwt':
             default:
-                if (isset($header['Authorization'])) {
-                    $token = explode(' ', $header['Authorization']);
-
-                    if (isset($token[0]) && $token[0] == 'Bearer' && isset($token[1])) {
-                        $this->accessToken = $token[1];
-                        $extractedAuthConfig = $this->_extractAuthConfig();
-
-                        try {
-                            $jwtDecoded = JWT::decode($this->accessToken, $extractedAuthConfig['authConfig']['secretKey'], [$extractedAuthConfig['authConfig']['algo']]);
-                            $response = [
-                                'success' => true,
-                                'jwtDecoded' => $jwtDecoded,
-                            ];
-
-                            $this->isAuthenticationSuccessful = true;
-
-                        } catch (\Exception $e) {
-                            $response = [
-                                'success' => false,
-                                'error' => $e->getMessage(),
-                            ];
-
-                            $this->isAuthenticationSuccessful = false;
-                        }
-                    } elseif (isset($token[0]) && $token[0] == 'Basic' && isset($token[1])) {
-                        $this->allowAccess('POST');
-                        Helpers::renderAsJson([
-                            'tokens' => $token,
-                            'tok' => $this->accessToken,
-                        ]);
-                    }
-                }
+                $jwtValidation = $this->_validateJWTAccessToken($this->accessToken);
+                $this->isAuthenticationSuccessful = $jwtValidation['success'];
                 break;
         }
 
         return $response;
+    }
+
+    /**
+     * Set access token if there is any
+     */
+    protected function _setAccessToken()
+    {
+        if ($this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
+            $header = apache_request_headers();
+            if (isset($header['Authorization'])) {
+                $token = explode(' ', $header['Authorization']);
+                if (isset($token[0]) && $token[0] == 'Bearer' && isset($token[1])) {
+                    $this->accessToken = $token[1];
+                }
+            }
+        }
     }
 
     /**
@@ -269,6 +323,27 @@ class Authentication extends Entrypoint
     }
 
     /**
+     * Validates the user password in the users table
+     *
+     * @param string $var1
+     * @param string $var2
+     *
+     * @return boolean
+     */
+    protected function _validatePassword($username, $password)
+    {
+        $db = $this->dbConn()
+            ->select($this->tableName, 'password')
+            ->where('username', $username)->one();
+
+        if (!empty($db)) {
+            return password_verify($password, $db['password']) ? true : false;
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * Loads the configuration array
      * based on the specified keyIdentifier
      *
@@ -330,5 +405,247 @@ class Authentication extends Entrypoint
                 ]);
             }
         }
+    }
+
+    /**
+     * Checks if the request is empty
+     */
+    protected function _checkRequestEmpty()
+    {
+        // Block the execution if the request is empty
+        if (empty($this->request)) {
+            Helpers::renderAsJson([
+                'success' => false,
+                'message' => 'No data has been passed.',
+            ], 400); // Bad request
+        }
+    }
+
+    /**
+     * Validate the user credentials
+     *
+     * @return void
+     */
+    protected function _validateUserCredentials($username, $password)
+    {
+        try {
+
+            $isPasswordOk = $this->_validatePassword($username, $password);
+
+            if (!$isPasswordOk) {
+                $this->_wrongCredentials([
+                    'success' => false,
+                    'message' => 'Wrong username or password!',
+                ]);
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            $this->_wrongCredentials([
+                'success' => false,
+                'message' => $e->getMessage() . ' | Error in validating user credentials.',
+            ]);
+        }
+    }
+
+    /**
+     * Validate the clientApp
+     *
+     * @return void
+     */
+    protected function _validateClientApp($clientId, $clientSecret)
+    {
+        if (empty($clientId)) {
+            $this->_wrongCredentials([
+                'success' => false,
+                'message' => "Missing clientId!",
+            ]);
+        }
+
+        $extractedAuthConfig = $this->_extractAuthConfig($clientId);
+        // If unsuccessful validation do not run the rest of the code.
+        if (!isset($clientId)
+            || !isset($clientSecret)
+            || !$this->_validateEquality($clientId, $extractedAuthConfig['app']['clientId'])
+            || !$this->_validateEquality($clientSecret, $extractedAuthConfig['app']['clientSecret'])
+        ) {
+            $this->_wrongCredentials([
+                'success' => false,
+                'message' => "Wrong client app credentials!",
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Set the json web token
+     *
+     * @return array
+     */
+    protected function _setJSONWebToken($clientId, $additionalPayload = [])
+    {
+        $extractedAuthConfig = $this->_extractAuthConfig($clientId);
+
+        // Pass the key in another variable
+        $key = $extractedAuthConfig['authConfig']['secretKey'];
+
+        // Unset the config that are not necessarilly needed for the payload
+        unset($extractedAuthConfig['authConfig']['name']);
+        unset($extractedAuthConfig['authConfig']['secretKey']);
+        unset($extractedAuthConfig['authConfig']['algo']);
+
+        // Prepare the payload
+        $payload = array_merge($extractedAuthConfig['authConfig'], [
+            'serverName' => $_SERVER['SERVER_NAME'],
+            'requestMethod' => $_SERVER['REQUEST_METHOD'],
+            'remoteAddrress' => $_SERVER['REMOTE_ADDR'],
+        ]);
+
+        // Add the additional payload
+        $payload = array_merge($payload, $additionalPayload);
+
+        // Generate JWT(Json Web Token)
+        $jwt = JWT::encode($payload, $key);
+
+        $data['access_token'] = $jwt;
+        $data['issued_at'] = date('Y-m-d g:i:s A', $extractedAuthConfig['authConfig']['iat']);
+        $data['available_at'] = date('Y-m-d g:i:s A', $extractedAuthConfig['authConfig']['nbf']);
+        $data['expiration'] = date('Y-m-d g:i:s A', $extractedAuthConfig['authConfig']['exp']);
+
+        return $data;
+    }
+
+    /**
+     * Validates the jwt
+     *
+     * @param string $accessToken
+     *
+     * @return boolean
+     */
+    protected function _validateJWTAccessToken($accessToken)
+    {
+        try {
+            if ($this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
+                $jwtDecoded = $this->_getJWTDecoded($accessToken);
+                return [
+                    'success' => true,
+                    'jwtDecoded' => $jwtDecoded,
+                ];
+            }
+        } catch (\Exception $e) {
+            Helpers::renderAsJson([
+                'success' => false,
+                'error' => $e->getMessage() . ' | Error in validating access token.',
+            ], 400);
+        }
+
+        return [
+            'success' => true,
+            'jwtDecoded' => null,
+        ];
+    }
+
+    /**
+     * Decodes the JWT
+     *
+     * @param string $accessToken
+     *
+     * @return array
+     */
+    protected function _getJWTDecoded($accessToken)
+    {
+        $extractedAuthConfig = $this->_extractAuthConfig();
+        return JWT::decode(
+            $accessToken,
+            $extractedAuthConfig['authConfig']['secretKey'],
+            [$extractedAuthConfig['authConfig']['algo']]);
+    }
+
+    /**
+     * Gets a new refresh token for jwt
+     *
+     * @param string $accessToken
+     *
+     */
+    protected function _getJWTRefreshToken($oldAccessToken)
+    {
+        try {
+
+            if ($this->authConfig['access_rule'][$this->endpoint]['isAccessPageViaAccessToken']) {
+                $success = false;
+
+                // Validate access token
+                $jwtValidation = $this->_validateJWTAccessToken($oldAccessToken);
+
+                // Ensure the authentication is still okay
+                $this->isAuthenticationSuccessful = $jwtValidation['success'];
+
+                // Decoded data from the previous authentication with all the payloads
+                $data = $jwtValidation['jwtDecoded'];
+
+                // Unset all of this since we are requesting a new one
+                unset($data->serverName);
+                unset($data->requestMethod);
+                unset($data->remoteAddrress);
+                unset($data->aud);
+                unset($data->iss);
+                unset($data->iat);
+                unset($data->nbf);
+                unset($data->exp);
+
+                if ($this->isAuthenticationSuccessful) {
+                    // Run the validations first
+                    switch ($data->type) {
+                        case self::AUTH_ENTITY_TYPE_CLIENT:
+                            // Validate client app
+                            $clientAppValidation = $this->_validateClientApp($data->clientId, $data->clientSecret);
+                            $success = $clientAppValidation;
+                            break;
+                        case self::AUTH_ENTITY_TYPE_USER:
+                            // Validate client app
+                            $clientAppValidation = $this->_validateClientApp($data->clientId, $data->clientSecret);
+
+                            // Validate user credentials
+                            $userCredentialsValidation = $this->_validateUserCredentials($data->username, $data->password);
+
+                            // If all validations are true then return true otherwise false.
+                            $success = $clientAppValidation && $userCredentialsValidation ? true : false;
+                            break;
+                    }
+
+                    // If successfully validated, return the refresh token.
+                    if ($success) {
+                        // Set another jwt
+                        $jwt = $this->_setJSONWebToken($data->clientId, (array) $data);
+                        $refreshToken = $jwt['access_token'];
+                        $this->accessToken = null;
+
+                        return !empty($refreshToken) ? ['refresh_token' => $refreshToken] : [];
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Helpers::renderAsJson([
+                'success' => false,
+                'error' => $e->getMessage() . ' | Error in refreshing access token.',
+            ], 400);
+        }
+
+        return [];
+    }
+
+    /**
+     * Response wrong credentials
+     *
+     * @param array $data
+     *
+     * @return void
+     */
+    protected function _wrongCredentials($data = [])
+    {
+        header('WWW-Authenticate: Basic realm="My Realm"');
+        header('HTTP/1.0 401 Unauthorized');
+        Helpers::renderAsJson($data, 401);
     }
 }
