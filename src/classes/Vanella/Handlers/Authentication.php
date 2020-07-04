@@ -305,6 +305,8 @@ class Authentication extends Entrypoint
                 $this->authConfig['default']['authenticatedApps'],
                 'clientId'
             );
+        } else {
+            $app = $this->authConfig['default']['jwtGlobalConfig'];
         }
 
         return $app;
@@ -499,18 +501,22 @@ class Authentication extends Entrypoint
      */
     protected function _setJSONWebToken($clientId, $additionalPayload = [])
     {
-        $extractedAppConfig = $this->_extractAppConfig($clientId);
+        $specificAppConfig = $this->_extractAppConfig($clientId);
+        $globalAppConfig = $this->_extractAppConfig();
 
         // Pass the key in another variable
-        $key = $extractedAppConfig['jwt']['secretKey'];
+        $key = $globalAppConfig['secretKey'];
+
+        // Combine the global config and specific config
+        $jwtPayload = array_merge($globalAppConfig, $specificAppConfig);
 
         // Unset the config that are not necessarilly needed for the payload
-        unset($extractedAppConfig['jwt']['name']);
-        unset($extractedAppConfig['jwt']['secretKey']);
-        unset($extractedAppConfig['jwt']['algo']);
+        unset($globalAppConfig['name']);
+        unset($globalAppConfig['secretKey']);
+        unset($globalAppConfig['algo']);
 
         // Prepare the payload
-        $payload = array_merge($extractedAppConfig['jwt'], [
+        $payload = array_merge($jwtPayload, [
             'serverName' => $_SERVER['SERVER_NAME'],
             'requestMethod' => $_SERVER['REQUEST_METHOD'],
             'remoteAddrress' => $_SERVER['REMOTE_ADDR'],
@@ -523,9 +529,9 @@ class Authentication extends Entrypoint
         $jwt = JWT::encode($payload, $key);
 
         $data['access_token'] = $jwt;
-        $data['issued_at'] = date('Y-m-d g:i:s A', $extractedAppConfig['jwt']['iat']);
-        $data['available_at'] = date('Y-m-d g:i:s A', $extractedAppConfig['jwt']['nbf']);
-        $data['expiration'] = date('Y-m-d g:i:s A', $extractedAppConfig['jwt']['exp']);
+        $data['issued_at'] = date('Y-m-d g:i:s A', $specificAppConfig['jwt']['iat']);
+        $data['available_at'] = date('Y-m-d g:i:s A', $specificAppConfig['jwt']['nbf']);
+        $data['expiration'] = date('Y-m-d g:i:s A', $specificAppConfig['jwt']['exp']);
 
         return $data;
     }
@@ -583,11 +589,12 @@ class Authentication extends Entrypoint
         // Block the whole execution if the access token is not present
         $this->_pageNeedsAccessToken($accessToken);
         try {
-            $extractedAppConfig = $this->_extractAppConfig($this->clientId);
+            $extractedAppConfig = $this->_extractAppConfig();
             $jwtDecoded = JWT::decode(
                 $accessToken,
-                $extractedAppConfig['jwt']['secretKey'],
-                [$extractedAppConfig['jwt']['algo']]);
+                $extractedAppConfig['secretKey'],
+                [$extractedAppConfig['algo']]);
+
             return $jwtDecoded;
         } catch (\Exception $e) {
             Helpers::renderAsJson(array_merge([
@@ -613,23 +620,27 @@ class Authentication extends Entrypoint
                 // Validate access token
                 $jwtValidation = $this->_validateJWTAccessToken($oldAccessToken);
 
+                
+
                 // Ensure the authentication is still okay
                 $this->isAuthenticationSuccessful = $jwtValidation['success'];
 
                 // Decoded data from the previous authentication with all the payloads
                 $data = $jwtValidation['jwtDecoded'];
 
+               
+
                 if ($this->isAuthenticationSuccessful && !empty($data)) {
                     // Unset all of this since we are requesting a new one
-                    unset($data->serverName);
+                    unset($data->jwt);
+                    unset($data->algo);
+                    unset($data->name);
+                    unset($data->secretKey);
                     unset($data->requestMethod);
                     unset($data->remoteAddrress);
-                    unset($data->aud);
-                    unset($data->iss);
-                    unset($data->iat);
-                    unset($data->nbf);
-                    unset($data->exp);
-
+                    unset($data->serverName);
+                    unset($data->appName);
+                    
                     // Run the validations first
                     switch ($data->type) {
                         case self::AUTH_ENTITY_TYPE_CLIENT:
