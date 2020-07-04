@@ -45,4 +45,22 @@ class Helpers
             $class->$nameOfChildMethod($args);
         }
     }
+
+    /**
+     * Loads the config file.
+     * Config file must only return something.
+     * 
+     * @param string $filePath
+     * @param string $name
+     * 
+     * @return array
+     */
+    final public static function loadConfig($filePath, $name = null)
+    {
+        if (file_exists($filePath)) {
+            return !empty($name) ? [$name => require_once $filePath]: require_once $filePath;
+        }
+
+        return [];  
+    }
 }

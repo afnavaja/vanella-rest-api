@@ -26,7 +26,7 @@ class Authentication extends Entrypoint
     protected $isAuthStatusResponseDisplayed = false;
     protected $isAuthInDebugMode = false;
     protected $accessToken;
-    protected $extractedAuthConfig;
+    protected $extractedAppConfig;
     protected $clientId;
     protected $clientSecret;
     protected $username;
@@ -89,6 +89,9 @@ class Authentication extends Entrypoint
         // This is to override Authentication config class from the child class
         Helpers::run_child_method($this, 'defaultConfig');
 
+        // Load the access token rule from config
+        $this->_loadAccessTokenRuleFromConfig();
+
         if ($this->isAuthActivated) {
             // Need to get the current Class and Function
             $this->authenticate();
@@ -96,6 +99,25 @@ class Authentication extends Entrypoint
             if ($this->endpointGroup == 'Auth') {
                 $this->_getRequestClientApp();
                 $this->_getRequestUser();
+            }
+        }
+    }
+
+    /**
+     * Loads the access token rule from config
+     * located in /src/restful/accessTokenRules
+     * directory
+     *
+     * @return void
+     */
+    protected function _loadAccessTokenRuleFromConfig()
+    {
+        $rules = Helpers::loadConfig('../restful/accessTokenRules/' . $this->endpointGroup . '.php');
+        if (!empty($rules)) {
+            foreach ($rules as $endpoint => $accessTokenRule) {
+                $this->_registerEndpointToAccessRule($endpoint, [
+                    'isAccessPageViaAccessToken' => $accessTokenRule,
+                ]);
             }
         }
     }
@@ -272,10 +294,9 @@ class Authentication extends Entrypoint
      *
      * @return array
      */
-    protected function _extractAuthConfig($requestClientId = null)
+    protected function _extractAppConfig($requestClientId = null)
     {
         $app = [];
-        $authConfig = [];
 
         if (isset($requestClientId)) {
             // Load the app client info from config/authentication.php
@@ -286,17 +307,7 @@ class Authentication extends Entrypoint
             );
         }
 
-        // Load the auth config from config/authentication.php
-        $authConfig = $this->_getActiveConfig(
-            isset($this->authConfig['default']['activeAuthName']) ? $this->authConfig['default']['activeAuthName'] : null,
-            isset($this->authConfig['default']['authList']) ? $this->authConfig['default']['authList'] : [],
-            'name'
-        );
-
-        return [
-            'app' => $app,
-            'authConfig' => $authConfig,
-        ];
+        return $app;
     }
 
     /**
@@ -465,12 +476,12 @@ class Authentication extends Entrypoint
             ]);
         }
 
-        $extractedAuthConfig = $this->_extractAuthConfig($clientId);
+        $extractedAppConfig = $this->_extractAppConfig($clientId);
         // If unsuccessful validation do not run the rest of the code.
         if (!isset($clientId)
             || !isset($clientSecret)
-            || !$this->_validateEquality($clientId, $extractedAuthConfig['app']['clientId'])
-            || !$this->_validateEquality($clientSecret, $extractedAuthConfig['app']['clientSecret'])
+            || !$this->_validateEquality($clientId, $extractedAppConfig['clientId'])
+            || !$this->_validateEquality($clientSecret, $extractedAppConfig['clientSecret'])
         ) {
             $this->_wrongCredentials([
                 'success' => false,
@@ -488,18 +499,18 @@ class Authentication extends Entrypoint
      */
     protected function _setJSONWebToken($clientId, $additionalPayload = [])
     {
-        $extractedAuthConfig = $this->_extractAuthConfig($clientId);
+        $extractedAppConfig = $this->_extractAppConfig($clientId);
 
         // Pass the key in another variable
-        $key = $extractedAuthConfig['authConfig']['secretKey'];
+        $key = $extractedAppConfig['jwt']['secretKey'];
 
         // Unset the config that are not necessarilly needed for the payload
-        unset($extractedAuthConfig['authConfig']['name']);
-        unset($extractedAuthConfig['authConfig']['secretKey']);
-        unset($extractedAuthConfig['authConfig']['algo']);
+        unset($extractedAppConfig['jwt']['name']);
+        unset($extractedAppConfig['jwt']['secretKey']);
+        unset($extractedAppConfig['jwt']['algo']);
 
         // Prepare the payload
-        $payload = array_merge($extractedAuthConfig['authConfig'], [
+        $payload = array_merge($extractedAppConfig['jwt'], [
             'serverName' => $_SERVER['SERVER_NAME'],
             'requestMethod' => $_SERVER['REQUEST_METHOD'],
             'remoteAddrress' => $_SERVER['REMOTE_ADDR'],
@@ -512,9 +523,9 @@ class Authentication extends Entrypoint
         $jwt = JWT::encode($payload, $key);
 
         $data['access_token'] = $jwt;
-        $data['issued_at'] = date('Y-m-d g:i:s A', $extractedAuthConfig['authConfig']['iat']);
-        $data['available_at'] = date('Y-m-d g:i:s A', $extractedAuthConfig['authConfig']['nbf']);
-        $data['expiration'] = date('Y-m-d g:i:s A', $extractedAuthConfig['authConfig']['exp']);
+        $data['issued_at'] = date('Y-m-d g:i:s A', $extractedAppConfig['jwt']['iat']);
+        $data['available_at'] = date('Y-m-d g:i:s A', $extractedAppConfig['jwt']['nbf']);
+        $data['expiration'] = date('Y-m-d g:i:s A', $extractedAppConfig['jwt']['exp']);
 
         return $data;
     }
@@ -572,11 +583,11 @@ class Authentication extends Entrypoint
         // Block the whole execution if the access token is not present
         $this->_pageNeedsAccessToken($accessToken);
         try {
-            $extractedAuthConfig = $this->_extractAuthConfig();
+            $extractedAppConfig = $this->_extractAppConfig($this->clientId);
             $jwtDecoded = JWT::decode(
                 $accessToken,
-                $extractedAuthConfig['authConfig']['secretKey'],
-                [$extractedAuthConfig['authConfig']['algo']]);
+                $extractedAppConfig['jwt']['secretKey'],
+                [$extractedAppConfig['jwt']['algo']]);
             return $jwtDecoded;
         } catch (\Exception $e) {
             Helpers::renderAsJson(array_merge([
@@ -674,9 +685,9 @@ class Authentication extends Entrypoint
         return $this->isAuthActivated ? [
             'warning' => [
                 'isAccessPageViaAccessToken' => false,
-                'message' => 'Please register this endpoint to access rule and set it to true to apply authentication to this endpoint.'
-            ]
-        ]:[];
+                'message' => 'Please register this endpoint to access rule and set it to true to apply authentication to this endpoint.',
+            ],
+        ] : [];
     }
 
     /**
