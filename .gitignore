@@ -1,3 +1,4 @@
 /config/main.php
 /vendor/
 /todos.txt
+composer.lock

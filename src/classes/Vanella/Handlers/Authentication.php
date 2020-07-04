@@ -566,6 +566,13 @@ class Authentication extends Entrypoint
         ];
     }
 
+    /**
+     * Will throw an error when page needs an access token
+     * 
+     * @param $accessToken
+     * 
+     * @return void
+     */
     protected function _pageNeedsAccessToken($accessToken)
     {
         if ($this->_isPageAccessibleViaAccessToken() && empty($accessToken)) {
