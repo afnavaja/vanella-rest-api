@@ -3,7 +3,7 @@
 namespace Vanella\Handlers;
 
 use Firebase\JWT\JWT;
-use Vanella\Core\Database;
+use Vanella\Database\QueryBuilder as Database;
 use Vanella\Core\Url;
 use Vanella\Handlers\Entrypoint;
 
