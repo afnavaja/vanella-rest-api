@@ -13,7 +13,7 @@ Vanella REST API is a standalone API framework using native PHP.
 ### Installation
 
 - Utilizes [composer](https://getcomposer.org/download/).
-- PHP Version (>= 5.3.0, PHP 7).
+- PHP Version (>= 5.3.0, safest in PHP 7).
 - MySQL
 
 ```sh
@@ -96,14 +96,6 @@ $ composer create-project afnav/vanella-rest-api
  3. Primarily uses OAuth2.0 for client authentication to generate the JWT access tokens.
  4. The initial configuration can be found in /src/config/authentication.php
  5. The authenticated apps configuration can be found in /src/config/authenticatedApps.php
- 6. The JWT configuration can be found in /src/config/authlist.php
- 7. When you activate the built-in authentication, you need to specify the endpoint rules of your custom endpoints explicitly. So in your endpoint group class, add this line to defaultConfig() function to explicitly register your endpoint access rule to the authentication class. The defaultConfig() function is automatically generated when you create your endpoint group.
  
-    ```sh
-       $this->_registerEndpointToAccessRule('anotherEndpoint', [
-            'isAccessPageViaAccessToken' => true,
-        ]);
-    ``` 
-
 ### Conclusion
 If you have questions, you can reach me through my email at afnavaja@gmail.com!
