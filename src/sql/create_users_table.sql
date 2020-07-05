@@ -22,5 +22,5 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `username` (`username`);
 
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=152;
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 COMMIT;
