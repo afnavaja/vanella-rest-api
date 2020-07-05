@@ -40,9 +40,7 @@ class Execution
             }
 
             if (!empty($class)) {
-
                 if (class_exists($class)) {
-
                     // Dynamically instantiate a class
                     $object = new $class([
                         'id' => $id,
@@ -51,8 +49,7 @@ class Execution
                         'endpoint' => $function,
                         'isMethodExecuted' => !empty($function) ? true : false,
                         'config' => $this->_args['config']
-                    ]);
-                     
+                    ]);                     
                     // Dynamically execute the function
                     if (!empty($function) && method_exists($class, $function)) {
                         $object->$function();
@@ -66,7 +63,6 @@ class Execution
                 } else {
                     Controller::render(__DIR__ . '/views/endpoint.notfound');
                 }
-
             } else {
                 new Documentation($this->_args);
             }
