@@ -2,6 +2,7 @@
 Vanella REST API is a standalone API framework using native PHP.
 
   - It is very easy to setup.
+  - It is reasonably fast because it only uses native PHP and has a very small codebase.
   - Has a built-in command-line interface called vanella to help you get started with your project!
   - It has a built-in create, read, update, delete API functionality.
   - It uses oAuth2 for client app authentication.
