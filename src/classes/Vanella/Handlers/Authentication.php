@@ -3,8 +3,8 @@
 namespace Vanella\Handlers;
 
 use Firebase\JWT\JWT;
-use Vanella\Database\QueryBuilder as Database;
 use Vanella\Core\Url;
+use Vanella\Database\QueryBuilder as Database;
 use Vanella\Handlers\Entrypoint;
 
 class Authentication extends Entrypoint
@@ -397,33 +397,6 @@ class Authentication extends Entrypoint
     }
 
     /**
-     * Must pass either GET,POST,PUT,PATCH,DELETE,HEAD
-     * in the $accessType methods
-     *
-     * @param mixed $accessType
-     *
-     * @return void
-     */
-    protected function allowAccess($accessType)
-    {
-        if (is_array($accessType)) {
-            if (!in_array($_SERVER['REQUEST_METHOD'], $accessType)) {
-                Helpers::renderAsJson(array_merge([
-                    'success' => false,
-                    'message' => 'Only [' . implode(' | ', $accessType) . '] methods are allowed!',
-                ], $this->_addRefreshTokenToResponse()));
-            }
-        } else {
-            if ($_SERVER['REQUEST_METHOD'] != $accessType) {
-                Helpers::renderAsJson(array_merge([
-                    'success' => false,
-                    'message' => 'Only ' . $accessType . ' methods are allowed!',
-                ], $this->_addRefreshTokenToResponse()));
-            }
-        }
-    }
-
-    /**
      * Checks if the request is empty
      */
     protected function _checkRequestEmpty()
@@ -568,9 +541,9 @@ class Authentication extends Entrypoint
 
     /**
      * Will throw an error when page needs an access token
-     * 
+     *
      * @param $accessToken
-     * 
+     *
      * @return void
      */
     protected function _pageNeedsAccessToken($accessToken)
@@ -627,15 +600,11 @@ class Authentication extends Entrypoint
                 // Validate access token
                 $jwtValidation = $this->_validateJWTAccessToken($oldAccessToken);
 
-                
-
                 // Ensure the authentication is still okay
                 $this->isAuthenticationSuccessful = $jwtValidation['success'];
 
                 // Decoded data from the previous authentication with all the payloads
                 $data = $jwtValidation['jwtDecoded'];
-
-               
 
                 if ($this->isAuthenticationSuccessful && !empty($data)) {
                     // Unset all of this since we are requesting a new one
@@ -647,7 +616,7 @@ class Authentication extends Entrypoint
                     unset($data->remoteAddrress);
                     unset($data->serverName);
                     unset($data->appName);
-                    
+
                     // Run the validations first
                     switch ($data->type) {
                         case self::AUTH_ENTITY_TYPE_CLIENT:

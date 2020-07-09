@@ -137,6 +137,8 @@ class Restful extends Authentication implements RestfulInterface
     public function create()
     {
         try {
+            // Run the validations
+            $this->runValidations();
 
             // Blocks the rest of the execution if request method does not match
             $this->allowAccess('POST');
@@ -158,11 +160,20 @@ class Restful extends Authentication implements RestfulInterface
                 );
             }
 
+            // If defaultDbUpdatedAtName field is not specified
+            if ($this->defaultDbUpdatedAtName) {
+                $data = array_merge(
+                    $data,
+                    [$this->defaultDbUpdatedAtName => $date->format('Y-m-d H:i:s')]
+                );
+            }
+
             //Remove data if not in table columns
             $data = $this->_cleanedData($data, $this->tableColumns, false);
 
             // Insert the data
             $id = $this->dbConn()->insert($this->tableName, $data)->execute();
+
             $success = true;
             $message = 'Succesfully added record with an ' . $this->defaultDbPrimaryKeyName . ' of ' . $id . '.';
             $message = (isset($this->defaultSuccessMessageCreate) ? $this->defaultSuccessMessageCreate : $message);
@@ -184,6 +195,9 @@ class Restful extends Authentication implements RestfulInterface
     public function update()
     {
         try {
+
+            // Run the validations
+            $this->runValidations();
 
             // Blocks the rest of the execution if request method does not match
             $this->allowAccess(['PATCH', 'PUT']);
@@ -215,6 +229,9 @@ class Restful extends Authentication implements RestfulInterface
     public function delete()
     {
         try {
+            // Run the validations
+            $this->runValidations();
+
             // Blocks the rest of the execution if request method does not match
             $this->allowAccess(['DELETE']);
 
@@ -363,14 +380,14 @@ class Restful extends Authentication implements RestfulInterface
                 'limit' => $this->limit,
             ], $response);
         }
-        
+
         $response = array_merge($response, $this->_addRefreshTokenToResponse());
         $response = array_merge($response, $this->_addAuthStatusResponse());
         $response = isset($data) ? array_merge(['data' => $data], $response) : $response;
 
         Helpers::renderAsJson($response, $responseCode, $allowedMethods, $allowedOrigin);
     }
-   
+
     /**
      * Returns the total item of the table
      *
@@ -419,7 +436,7 @@ class Restful extends Authentication implements RestfulInterface
      */
     private function _loadConfig($args = [])
     {
-        $this->tableColumns = $this->_getTableColumns();
+        $this->tableColumns = $this->_getTableColumns($this->tableName);
 
         // Register this predefined enpoint
         $this->_registerEndpointToAccessRule('endpoints', [
@@ -435,6 +452,26 @@ class Restful extends Authentication implements RestfulInterface
         if (empty($args['isMethodExecuted'])) {
             $this->endpoints();
         }
+    }
+
+    /**
+     * Performs the validation
+     *
+     * @return void
+     */
+    protected function runValidations($isValidationActivated = true)
+    {
+        // Run validation
+        new Validations([
+            'db' => $this->dbConn(),
+            'isValidationActivated' => $isValidationActivated,
+            'endpointGroup' => $this->endpointGroup,
+            'endpoint' => $this->endpoint,
+            'table' => $this->tableName,
+            'tableColumns' => $this->tableColumns,
+            'requestData' => $this->request,
+            'refreshToken' => $this->_addRefreshTokenToResponse(),
+        ]);
     }
 
     /**
@@ -463,10 +500,10 @@ class Restful extends Authentication implements RestfulInterface
     /**
      * Get the tablecolumns of this table
      */
-    protected function _getTableColumns()
+    protected function _getTableColumns($tableName)
     {
         $data = [];
-        $db = $this->dbConn()->tableColumns($this->tableName);
+        $db = $this->dbConn()->tableColumns($tableName);
 
         if (!empty($db)) {
             foreach ($db as $items) {
