@@ -48,7 +48,7 @@ class Validations
                 foreach ($fields as $field) {
                     $rulesFullPath = $path . '/' . $field;
                     $key = substr($field, 0, -4); // We will be removing the .php extension
-                    $validationConfig[$key] = require_once $rulesFullPath; // We will include what's inside the file 
+                    $validationConfig[$key] = require_once $rulesFullPath; // We will include what's inside the file
                 }
             }
 
@@ -128,9 +128,7 @@ class Validations
                                 }
                             }
                         } else {
-
                             foreach ($rules as $rule) {
-
                                 // Run validator if it matches the key
                                 if ($rule === $validatorKey) {
                                     // Dynamically load the validator class

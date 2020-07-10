@@ -2,7 +2,6 @@
 Vanella REST API is a standalone API framework using native PHP.
 
   - It is very easy to setup.
-  - It is reasonably fast because it only uses native PHP and has a very small codebase.
   - Has a built-in command-line interface called vanella to help you get started with your project!
   - It has a built-in create, read, update, delete API functionality.
   - It uses oAuth2 for client app authentication.
@@ -25,9 +24,9 @@ $ composer create-project afnav/vanella-rest-api
     ```sh
     $ php vanella
     ```
-- Run and choose [all] to create the initial config.
+- Run this command to initialize your project
     ```sh
-    $ php vanella create:config
+    $ php vanella initialize
     ```
 - Go to your app root directory /src/config/database.php to change the database credentials.
 - In your /src/config/main.php file, there is an active_env key; you change it to "development" or "production" if you want. The default value is "development".
