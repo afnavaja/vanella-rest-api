@@ -110,6 +110,7 @@ class Validations
                         if (in_array($validatorKey, ['min', 'max'])) {
                             if (array_key_exists($validatorKey, $rules)) {
                                 $errorValue = new $validatorClass([
+                                    'class' => $validatorClass,
                                     'field' => $field,
                                     'value' => $value,
                                     'args' => [
@@ -127,6 +128,7 @@ class Validations
                                 if ($rule === $validatorKey) {
                                     // Dynamically load the validator class
                                     $errorValue = new $validatorClass([
+                                        'class' => $validatorClass,
                                         'db' => $this->db,
                                         'table' => $this->table,
                                         'field' => $field,

@@ -476,8 +476,12 @@ class Restful extends Authentication implements RestfulInterface
     protected function runAuthorization()
     {
         if ($this->_isPageAccessibleViaAccessToken()) {
+
+            // Get the decode JWT
             $jwtDecoded = (array) $this->_getJWTDecoded($this->accessToken);
-            $this->validateUserCredentials($jwtDecoded['username'], $jwtDecoded['password']);
+            $username = isset($jwtDecoded['username']) ? $jwtDecoded['username'] : null;
+            $password = isset($jwtDecoded['password']) ? $jwtDecoded['password'] : null;
+            $this->validateUserCredentials($username, $password);
 
             $init = [
                 'endpointGroup' => $this->endpointGroup,

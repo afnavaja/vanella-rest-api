@@ -34,7 +34,7 @@ class Authorization
             if (!file_exists($path)) {
                 Helpers::renderAsJson([
                     'success' => false,
-                    'error' => 'Looks like you did not set an authorization rule for each "' . $this->args['validatedUser']['role'] . '" role in your rest api. Please run [php vanella add:authorization]',
+                    'error' => 'Looks like you did not set an authorization rule for each "' . $this->args['validatedUser']['role'] . '" role in your rest api. Please go to /utility/login_util',
                 ], 500);
             }
 

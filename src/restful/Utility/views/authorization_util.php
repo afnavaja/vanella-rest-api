@@ -30,6 +30,7 @@
                                                 Can access '.$endpoint.'? 
                                                 </label>
                                             </div>';
+                                $isChecked = null;
                             }
                         }
                         $data .= '</li>';
@@ -39,7 +40,7 @@
                 $data .= '</ul>';  
                 echo $data;
             ?>
-            <button name="submit" type="submit" class="btn btn-primary btn-block">Save</button>
+            <button name="submit" type="submit" class="btn btn-primary btn-block" style="width: 40%">Save</button>
         </form>
     </div>
 </div>

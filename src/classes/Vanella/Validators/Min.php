@@ -23,16 +23,14 @@ class Min extends Validator
     /**
      * Checks if the value is alphanumeric
      *
-     * @param string $field
-     * @param string $value
-     * @param string $customMessage
+     * @param array $args
      *
      * @return array
      */
-    public function handle($field, $value, $customMessage = null)
+    public function handle($args = [])
     {
-        if (strlen($value) < $this->min && !empty($value)) {
-            $message = !is_null($customMessage) ? $customMessage : 'This ' . $field . ' field should only be ' . $this->min . ' characters minimum.';
+        if (strlen($args['value']) < $this->min && !empty($args['value'])) {
+            $message = isset($args['customMessage']) ? $args['customMessage'] : 'This ' . $args['field'] . ' field should only be ' . $this->min . ' characters minimum.';
             $this->message = [
                 'rule' => $this->ruleName,
                 'message' => $message,

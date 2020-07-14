@@ -20,16 +20,14 @@ class Required extends Validator
     /**
      * Checks if the value is empty
      *
-     * @param string $field
-     * @param string $value
-     * @param string $customMessage
+     * @param array $args
      *
      * @return array
      */
-    public function handle($field, $value, $customMessage = null)
+    public function handle($args = [])
     {
-        if (empty($value)) {
-            $message = !is_null($customMessage) ? $customMessage : 'The ' . $field . ' field is required.';
+        if (empty($args['value'])) {
+            $message = isset($args['customMessage']) ? $args['customMessage'] : 'The ' . $args['field'] . ' field is required.';
             $this->message = [
                 'rule' => $this->ruleName,
                 'message' => $message,

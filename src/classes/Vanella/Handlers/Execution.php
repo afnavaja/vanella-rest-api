@@ -63,7 +63,10 @@ class Execution
                         ], 400);
                     }
                 } else {
-                    Controller::render(__DIR__ . '/views/endpoint.notfound');
+                    Helpers::renderAsJson([
+                        'success' => false,
+                        'message' => 'The endpoint group does not exist!'
+                    ], 400);
                 }
             } else {
                 new Documentation($this->_args);

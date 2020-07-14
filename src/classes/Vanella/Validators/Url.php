@@ -20,16 +20,14 @@ class Url extends Validator
     /**
      * Checks if the value is URL
      *
-     * @param string $field
-     * @param string $value
-     * @param string $customMessage
+     * @param array $args
      *
      * @return array
      */
-    public function handle($field, $value, $customMessage = null)
+    public function handle($args = [])
     {
-        if (!filter_var($value, FILTER_VALIDATE_URL) && !empty($value)) {
-            $message = !is_null($customMessage) ? $customMessage : 'This ' . $field . ' field is not a valid URL.';
+        if (!filter_var($args['value'], FILTER_VALIDATE_URL) && !empty($args['value'])) {
+            $message = isset($args['customMessage']) ? $args['customMessage'] : 'This ' . $args['field'] . ' field is not a valid URL.';
             $this->message = [
                 'rule' => $this->ruleName,
                 'message' => $message,

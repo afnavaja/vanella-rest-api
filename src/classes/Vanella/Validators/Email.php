@@ -20,16 +20,14 @@ class Email extends Validator
     /**
      * Checks if the value is empty
      *
-     * @param string $field
-     * @param string $value
-     * @param string $customMessage
+     * @param array $args
      *
      * @return array
      */
-    public function handle($field, $value, $customMessage = null)
+    public function handle($args = [])
     {
-        if (!filter_var($value, FILTER_VALIDATE_EMAIL) && !empty($value)) {
-            $message = !is_null($customMessage) ? $customMessage : 'This ' . $field . ' field is not a valid email.';
+        if (!filter_var($args['value'], FILTER_VALIDATE_EMAIL) && !empty($args['value'])) {
+            $message = isset($args['customMessage']) ? $args['customMessage'] : 'This ' . $args['field'] . ' field is not a valid email.';
             $this->message = [
                 'rule' => $this->ruleName,
                 'message' => $message,

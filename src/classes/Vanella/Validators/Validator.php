@@ -4,7 +4,7 @@ namespace Vanella\Validators;
 
 interface ValidatorInterface
 {
-    public function handle($field, $value, $customMessage);
+    public function handle($args = []);
 }
 
 class Validator implements ValidatorInterface
@@ -22,10 +22,17 @@ class Validator implements ValidatorInterface
         $this->field = isset($args['field']) ? $args['field'] : null;
         $this->value = isset($args['value']) ? $args['value'] : null;
         $this->customMessage = isset($args['customMessage']) ? $args['customMessage'] : null;
-        $this->handle($this->field, $this->value, $this->customMessage);
+        $this->handle($args);
     }
 
-    public function handle($field, $value, $customMessage)
+    /**
+     * Handles the validation
+     *
+     * @param array $args
+     *
+     * @return array
+     */
+    public function handle($args = [])
     {
 
     }

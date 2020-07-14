@@ -20,23 +20,21 @@ class Date extends Validator
     /**
      * Checks if the date is valid "Y-m-d" format
      *
-     * @param string $field
-     * @param string $value
-     * @param string $customMessage
+     * @param array $args
      *
      * @return array
      */
-    public function handle($field, $value, $customMessage = null)
+    public function handle($args = [])
     {
-        if (!empty($value)) {
-            $newDate = explode('-', $value);
+        if (!empty($args['value'])) {
+            $newDate = explode('-', $args['value']);
 
             $year = isset($newDate[0]) ? $newDate[0] : null;
             $month = isset($newDate[1]) ? $newDate[1] : null;
             $day = isset($newDate[2]) ? $newDate[2] : null;
 
             if (!checkdate($month, $day, $year)) {
-                $message = !is_null($customMessage) ? $customMessage : 'This ' . $field . ' field is not a valid date.';
+                $message = isset($args['customMessage']) ? $args['customMessage'] : 'This ' . $args['field'] . ' field is not a valid date.';
                 $this->message = [
                     'rule' => $this->ruleName,
                     'message' => $message,

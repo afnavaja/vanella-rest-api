@@ -22,21 +22,19 @@ class Unique extends Validator
     /**
      * Checks if the value already exists
      *
-     * @param string $field
-     * @param string $value
-     * @param string $customMessage
+     * @param array $args
      *
      * @return array
      */
-    public function handle($field, $value, $customMessage = null)
+    public function handle($args = [])
     {
-        if (!empty($value)) {
+        if (!empty($args['value']) && in_array($_SERVER['REQUEST_METHOD'], ['POST'])) {
             $result = $this->db
                 ->select($this->table)
-                ->where($field, $value)
+                ->where($args['field'], $args['value'])
                 ->one();
             if (!empty($result)) {
-                $message = !is_null($customMessage) ? $customMessage : 'This ' . $value . ' already exists in the database.';
+                $message = isset($args['customMessage']) ? $args['customMessage'] : 'This ' . $args['value'] . ' already exists in the database.';
                 $this->message = [
                     'rule' => $this->ruleName,
                     'message' => $message,

@@ -361,7 +361,7 @@ class Authentication extends Entrypoint
             ->where('username', $username)->one();
 
         // Do not pass the password
-        $dbPassword = $db['password'];
+        $dbPassword = isset($db['password']) ? $db['password']:null;
         unset($db['password']);
 
         // Pass the info the validated user
