@@ -39,7 +39,7 @@ class Authorization
             }
 
             $authorizedResourcesEndpoints = require_once $path;
-            
+
             if (!in_array($currenEndpoint, $authorizedResourcesEndpoints[$this->args['validatedUser']['role']])) {
                 Helpers::renderAsJson([
                     'success' => false,

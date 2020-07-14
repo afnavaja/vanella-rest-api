@@ -475,7 +475,7 @@ class Restful extends Authentication implements RestfulInterface
      */
     protected function runAuthorization()
     {
-        if ($this->_isPageAccessibleViaAccessToken()) {  
+        if ($this->_isPageAccessibleViaAccessToken()) {
             $jwtDecoded = (array) $this->_getJWTDecoded($this->accessToken);
             $this->validateUserCredentials($jwtDecoded['username'], $jwtDecoded['password']);
 
@@ -486,10 +486,10 @@ class Restful extends Authentication implements RestfulInterface
                 'childClass' => $this->childClass,
                 'declaredPredefinedMethods' => $this->declaredPredefinedMethods,
                 'accessToken' => $this->accessToken,
-                'validatedUser' => $this->validatedUser      
-            ];               
-            
-            new Authorization($init);        
+                'validatedUser' => $this->validatedUser
+            ];
+
+            new Authorization($init);
         }
     }
 

@@ -89,8 +89,7 @@ class Authentication extends Entrypoint
         // Load the access token rule from config
         $this->_loadAccessTokenRuleFromConfig();
 
-        if (isset($this->authConfig['default']['isAuthActivated'])
-            && $this->authConfig['default']['isAuthActivated']) {
+        if ($this->isAuthActivated()) {
             // Need to get the current Class and Function
             $this->authenticate();
 
@@ -99,6 +98,16 @@ class Authentication extends Entrypoint
                 $this->_getRequestUser();
             }
         }
+    }
+
+    /**
+     * Checks if Auth is Activated
+     * 
+     * @return boolean
+     */
+    protected function isAuthActivated()
+    {
+        return isset($this->authConfig['default']['isAuthActivated']) && $this->authConfig['default']['isAuthActivated'] ? true :false;
     }
 
     /**
@@ -394,7 +403,7 @@ class Authentication extends Entrypoint
     private function _setAuthenticationStatus()
     {
         return [
-            'isAuthActivated' => $this->authConfig['default']['isAuthActivated'],
+            'isAuthActivated' => isset($this->authConfig['default']['isAuthActivated']) ? $this->authConfig['default']['isAuthActivated']:false,
             'authConfig' => $this->authConfig,
             'endpointGroup' => $this->endpointGroup,
             'endpoint' => $this->endpoint,
@@ -555,7 +564,7 @@ class Authentication extends Entrypoint
      */
     protected function _pageNeedsAccessToken($accessToken)
     {
-        if ($this->authConfig['default']['isAuthActivated']
+        if ($this->isAuthActivated()
             && $this->_isPageAccessibleViaAccessToken()
             && $accessToken == '') {
             Helpers::renderAsJson([
@@ -576,7 +585,7 @@ class Authentication extends Entrypoint
     protected function _getJWTDecoded($accessToken)
     {
 
-        if ($this->authConfig['default']['isAuthActivated'] && $this->_isPageAccessibleViaAccessToken()) {
+        if ($this->isAuthActivated() && $this->_isPageAccessibleViaAccessToken()) {
             try {
                 $extractedAppConfig = $this->_extractAppConfig();
                 $jwtDecoded = JWT::decode(
@@ -678,7 +687,7 @@ class Authentication extends Entrypoint
             return $this->_getJWTRefreshToken($this->accessToken);
         }
 
-        return $this->authConfig['default']['isAuthActivated'] ? [
+        return $this->isAuthActivated() ? [
             'warning' => [
                 'isAccessPageViaAccessToken' => false,
                 'message' => 'Please register this endpoint to access rule and set it to true to apply authentication to this endpoint.',

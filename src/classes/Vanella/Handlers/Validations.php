@@ -21,7 +21,7 @@ class Validations
         $this->refreshToken = isset($this->args['refreshToken']) && $this->args['refreshToken'] ? $this->args['refreshToken'] : null;
         $this->validators = $this->args['validators'];
 
-        if($this->isValidationActivated) {
+        if ($this->isValidationActivated) {
             $this->runValidation($this->args);
         }
     }
@@ -65,7 +65,6 @@ class Validations
         }
     }
 
-   
     /**
      * Run the validation
      *

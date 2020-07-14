@@ -66,11 +66,11 @@ class ViewHelpers
                     $data .= '<td>' . $item[$key] . '</td>';
                 }
                 if ($isAction) {
-                    $data .=  '<td width="5%">';
+                    $data .= '<td width="5%">';
                     $data .= '<a href="' . $basePaginationUrl . 'action=info&id=' . $item[$defaultIdName] . '">Info</a>';
                     $data .= '</td>';
-                }                
-                
+                }
+
                 $data .= '</tr>';
             }
         } else {

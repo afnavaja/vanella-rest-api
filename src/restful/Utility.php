@@ -9,7 +9,7 @@ use Vanella\Handlers\Helpers;
  * This class will serve as an additional utility
  * for you rest api application. You can set the
  * authorization for each users here.
- * 
+ *
  * Visit www.yourwebsite.com/utility/login_util to access this endpoint
  */
 class Utility extends Authentication
@@ -40,24 +40,23 @@ class Utility extends Authentication
             'authorization_util',
             'users_util',
             'validation_util',
-            'authorization_util_save'
+            'authorization_util_save',
         ]);
         parent::__construct($args);
-        $this->isAuthActivated();
+        $this->isAuthActivatedHere();
     }
-
 
     /**
      * Checks if auth is activated
-     * 
+     *
      * @return void
      */
-    private function isAuthActivated()
+    private function isAuthActivatedHere()
     {
         if (!isset($this->authConfig['default']['isAuthActivated']) && !$this->authConfig['default']['isAuthActivated']) {
             Helpers::renderAsJson([
                 'success' => false,
-                'message' => 'You need to activate auth to access this page. Run [php vanella activate:auth]'
+                'message' => 'You need to activate auth to access this page. Run [php vanella activate:auth]',
             ], 403);
         }
     }
@@ -68,11 +67,11 @@ class Utility extends Authentication
      * @return void
      */
     public function login_util()
-    {           
+    {
         $this->data['title'] = 'Login';
         $this->data['page'] = 'login';
 
-        if (isset($_POST['submit'])) {  
+        if (isset($_POST['submit'])) {
             $username = isset($_POST['username']) ? $_POST['username'] : null;
             $password = isset($_POST['password']) ? $_POST['password'] : null;
             $user = $this->validateUser($username, $password);
@@ -92,10 +91,10 @@ class Utility extends Authentication
 
     /**
      * Validates the user that logs in the utility
-     * 
+     *
      * @param string $username
      * @param string $password
-     * 
+     *
      * @return boolean
      */
     private function validateUser($username, $password)
@@ -105,15 +104,15 @@ class Utility extends Authentication
             ->where('username', $username)
             ->one();
 
-        if (!empty($db)) {            
+        if (!empty($db)) {
             return [
-                'success' => password_verify($password, $db['password']) ? true:false,
-                'data' => $db
+                'success' => password_verify($password, $db['password']) ? true : false,
+                'data' => $db,
             ];
         } else {
             return [
                 'success' => false,
-                'data' => []
+                'data' => [],
             ];
         }
 
@@ -159,7 +158,7 @@ class Utility extends Authentication
      * @return void
      */
     public function users_util()
-    {   
+    {
         $this->redirectIfNotLoggedIn();
         $this->data['title'] = 'Users';
         $this->data['page'] = 'users';
@@ -176,7 +175,7 @@ class Utility extends Authentication
      * @return void
      */
     public function authorization_util()
-    {        
+    {
         $this->redirectIfNotLoggedIn();
         $this->data['title'] = 'Authorization';
         $this->data['page'] = 'authorization';
@@ -196,7 +195,7 @@ class Utility extends Authentication
 
     /**
      * Gets all the endpoint URL in you rest api
-     * 
+     *
      * @return array
      */
     private function getEndpointsUrl($predefinedMethods)
@@ -205,7 +204,7 @@ class Utility extends Authentication
         $endpoints = Helpers::allEndpoints($predefinedMethods);
         if (!empty($endpoints)) {
             foreach ($endpoints as $item) {
-                if(!in_array($item['endpointgroup'], ['Auth'])) {
+                if (!in_array($item['endpointgroup'], ['Auth'])) {
                     $endpointUrl[] = $item['endpointUrl'];
                 }
             }
@@ -220,7 +219,7 @@ class Utility extends Authentication
      * @return void
      */
     public function authorization_util_save()
-    {        
+    {
         $this->redirectIfNotLoggedIn();
         $filename = '../restful/Authorization/authorization.php';
 
