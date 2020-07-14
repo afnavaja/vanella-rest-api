@@ -19,5 +19,4 @@ class Documentation
         
         Controller::render(__DIR__ . '/views/index', $data);
     }
-
 }

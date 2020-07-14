@@ -15,7 +15,6 @@ class Authentication extends Entrypoint
     protected $tableName = "";
     protected $tableColumns = [];
     protected $activeAuthClientEndpointGroup = 'Auth';
-    protected $isAuthActivated;
     protected $isRefreshTokenActivated;
     protected $authEndpointList;
     protected $authConfig = ['default' => []];
@@ -31,6 +30,7 @@ class Authentication extends Entrypoint
     protected $clientSecret;
     protected $username;
     protected $password;
+    protected $validatedUser;
 
     /**
      * Constructor
@@ -52,7 +52,8 @@ class Authentication extends Entrypoint
             $this->dbConfig['db_host'],
             $this->dbConfig['db_username'],
             $this->dbConfig['db_password'],
-            $this->dbConfig['db_name']
+            $this->dbConfig['db_name'],
+            $this->dbConfig['db_driver']
         );
     }
 
@@ -65,7 +66,6 @@ class Authentication extends Entrypoint
      */
     private function _loadDefaultAuthConfig($args = [])
     {
-
         // Initally load all all auth configs found in config/authentication.php
         $this->authConfig['default'] = !empty($args['config']['authentication']) ? $args['config']['authentication'] : [];
 
@@ -73,9 +73,6 @@ class Authentication extends Entrypoint
         // if the certain resource or endpoint can be access
         $this->authConfig['access_rule'] = [];
         Helpers::run_child_method($this, 'accessRule');
-
-        // Turn this on if you want authentication on this endpoint group.
-        $this->isAuthActivated = isset($this->authConfig['default']['isAuthActivated']) ? $this->authConfig['default']['isAuthActivated'] : null;
 
         // Turn this on if you want refresh token to persist in every request
         $this->isRefreshTokenActivated = isset($this->authConfig['default']['isRefreshTokenActivated']) ? $this->authConfig['default']['isRefreshTokenActivated'] : null;
@@ -92,7 +89,8 @@ class Authentication extends Entrypoint
         // Load the access token rule from config
         $this->_loadAccessTokenRuleFromConfig();
 
-        if ($this->isAuthActivated) {
+        if (isset($this->authConfig['default']['isAuthActivated'])
+            && $this->authConfig['default']['isAuthActivated']) {
             // Need to get the current Class and Function
             $this->authenticate();
 
@@ -155,6 +153,7 @@ class Authentication extends Entrypoint
      */
     protected function authenticate()
     {
+            
         // Set the access token if we could grab one
         $this->_setAccessToken();
 
@@ -163,7 +162,7 @@ class Authentication extends Entrypoint
         // If auth config is missing
         if (!$this->authConfig['access_rule']) {
             $this->authStatusResponse = array_merge([
-                'message' => 'Please specify endpoint names to be authenticated. You set the isAuthactivated to true, therefore this API framework requires you to specify the access rule for each endpoints. See the endpoint list below.',
+                'message' => 'Please specify endpoint names to be authenticated. You set the isAuthActivated to true, therefore this API framework requires you to specify the access rule for each endpoints. See the endpoint list below.',
             ], $this->authStatusResponse);
             $this->isAuthenticationSuccessful = true;
             $responseCode = 400; // Bad Request
@@ -206,7 +205,7 @@ class Authentication extends Entrypoint
 
             // Built in process for the access_token.
             // Read the access_token when not in Auth endpoint group
-            if ($this->endpointGroup !== 'Auth') {
+            if ($this->endpointGroup !== 'Auth' && $this->_isPageAccessibleViaAccessToken()) {             
                 $this->authStatusResponse = array_merge($this->_processHeaderAuthorization(), $this->authStatusResponse);
             }
         }
@@ -260,7 +259,7 @@ class Authentication extends Entrypoint
                 if (isset($token[0]) && $token[0] == 'Bearer' && isset($token[1])) {
                     $this->accessToken = $token[1];
                 }
-            }
+            }           
         }
     }
 
@@ -349,11 +348,18 @@ class Authentication extends Entrypoint
     protected function _validatePassword($username, $password)
     {
         $db = $this->dbConn()
-            ->select($this->tableName, 'password')
+            ->select($this->tableName, 'password,role,username,email')
             ->where('username', $username)->one();
 
+        // Do not pass the password
+        $dbPassword = $db['password'];
+        unset($db['password']);
+
+        // Pass the info the validated user
+        $this->validatedUser = $db;
+
         if (!empty($db)) {
-            return password_verify($password, $db['password']) ? true : false;
+            return password_verify($password, $dbPassword) ? true : false;
         } else {
             return false;
         }
@@ -388,7 +394,7 @@ class Authentication extends Entrypoint
     private function _setAuthenticationStatus()
     {
         return [
-            'isAuthActivated' => $this->isAuthActivated,
+            'isAuthActivated' => $this->authConfig['default']['isAuthActivated'],
             'authConfig' => $this->authConfig,
             'endpointGroup' => $this->endpointGroup,
             'endpoint' => $this->endpoint,
@@ -415,7 +421,7 @@ class Authentication extends Entrypoint
      *
      * @return void
      */
-    protected function _validateUserCredentials($username, $password)
+    public function validateUserCredentials($username, $password)
     {
         try {
 
@@ -442,7 +448,7 @@ class Authentication extends Entrypoint
      *
      * @return void
      */
-    protected function _validateClientApp($clientId, $clientSecret)
+    public function validateClientApp($clientId, $clientSecret)
     {
         if (empty($clientId)) {
             $this->_wrongCredentials([
@@ -516,11 +522,12 @@ class Authentication extends Entrypoint
      *
      * @return boolean
      */
-    protected function _validateJWTAccessToken($accessToken)
+    protected function _validateJWTAccessToken()
     {
         try {
             if ($this->_isPageAccessibleViaAccessToken()) {
-                $jwtDecoded = $this->_getJWTDecoded($accessToken);
+                $jwtDecoded = $this->_getJWTDecoded($this->accessToken);
+
                 return [
                     'success' => true,
                     'jwtDecoded' => $jwtDecoded,
@@ -548,8 +555,11 @@ class Authentication extends Entrypoint
      */
     protected function _pageNeedsAccessToken($accessToken)
     {
-        if ($this->_isPageAccessibleViaAccessToken() && empty($accessToken)) {
+        if ($this->authConfig['default']['isAuthActivated']
+            && $this->_isPageAccessibleViaAccessToken()
+            && $accessToken == '') {
             Helpers::renderAsJson([
+                'access_token' => $this->accessToken,
                 'success' => false,
                 'message' => 'This resource needs an access token!',
             ], 401);
@@ -566,21 +576,21 @@ class Authentication extends Entrypoint
     protected function _getJWTDecoded($accessToken)
     {
 
-        // Block the whole execution if the access token is not present
-        $this->_pageNeedsAccessToken($accessToken);
-        try {
-            $extractedAppConfig = $this->_extractAppConfig();
-            $jwtDecoded = JWT::decode(
-                $accessToken,
-                $extractedAppConfig['secretKey'],
-                [$extractedAppConfig['algo']]);
+        if ($this->authConfig['default']['isAuthActivated'] && $this->_isPageAccessibleViaAccessToken()) {
+            try {
+                $extractedAppConfig = $this->_extractAppConfig();
+                $jwtDecoded = JWT::decode(
+                    $accessToken,
+                    $extractedAppConfig['secretKey'],
+                    [$extractedAppConfig['algo']]);
 
-            return $jwtDecoded;
-        } catch (\Exception $e) {
-            Helpers::renderAsJson(array_merge([
-                'success' => false,
-                'message' => $e->getMessage() . ' | The access token experienced an error in decoding.',
-            ]), 401);
+                return $jwtDecoded;
+            } catch (\Exception $e) {
+                Helpers::renderAsJson(array_merge([
+                    'success' => false,
+                    'message' => $e->getMessage() . ' | The access token experienced an error in decoding.',
+                ]), 401);
+            }
         }
     }
 
@@ -593,7 +603,6 @@ class Authentication extends Entrypoint
     protected function _getJWTRefreshToken($oldAccessToken)
     {
         try {
-
             if ($this->_isPageAccessibleViaAccessToken()) {
                 $success = false;
 
@@ -621,15 +630,15 @@ class Authentication extends Entrypoint
                     switch ($data->type) {
                         case self::AUTH_ENTITY_TYPE_CLIENT:
                             // Validate client app
-                            $clientAppValidation = $this->_validateClientApp($data->clientId, $data->clientSecret);
+                            $clientAppValidation = $this->validateClientApp($data->clientId, $data->clientSecret);
                             $success = $clientAppValidation;
                             break;
                         case self::AUTH_ENTITY_TYPE_USER:
                             // Validate client app
-                            $clientAppValidation = $this->_validateClientApp($data->clientId, $data->clientSecret);
+                            $clientAppValidation = $this->validateClientApp($data->clientId, $data->clientSecret);
 
                             // Validate user credentials
-                            $userCredentialsValidation = $this->_validateUserCredentials($data->username, $data->password);
+                            $userCredentialsValidation = $this->validateUserCredentials($data->username, $data->password);
 
                             // If all validations are true then return true otherwise false.
                             $success = $clientAppValidation && $userCredentialsValidation ? true : false;
@@ -669,7 +678,7 @@ class Authentication extends Entrypoint
             return $this->_getJWTRefreshToken($this->accessToken);
         }
 
-        return $this->isAuthActivated ? [
+        return $this->authConfig['default']['isAuthActivated'] ? [
             'warning' => [
                 'isAccessPageViaAccessToken' => false,
                 'message' => 'Please register this endpoint to access rule and set it to true to apply authentication to this endpoint.',
@@ -705,4 +714,16 @@ class Authentication extends Entrypoint
         header('HTTP/1.0 401 Unauthorized');
         Helpers::renderAsJson(array_merge($data, $this->_addRefreshTokenToResponse()), 401);
     }
+
+    /**
+     * Checks if the request is
+     * POST,PUT,PATCH
+     * 
+     * @return boolean
+     */
+    protected function isPostPutPatchServerRequest() 
+    {
+        return in_array($_SERVER['REQUEST_METHOD'], ['POST','PUT','PATCH']) ? true:false;
+    }
+
 }

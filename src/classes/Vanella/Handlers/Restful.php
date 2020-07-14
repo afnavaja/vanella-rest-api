@@ -2,9 +2,8 @@
 
 namespace Vanella\Handlers;
 
-use Vanella\Core\Controller;
-use Vanella\Core\Url;
 use Vanella\Handlers\Authentication;
+use Vanella\Handlers\Authorization;
 
 interface RestfulInterface
 {
@@ -33,21 +32,14 @@ class Restful extends Authentication implements RestfulInterface
     public function __construct($args = [])
     {
         parent::__construct($args);
-        $this->_loadConfig($args);
-        date_default_timezone_set($this->restConfig['timezone']);
-    }
 
-    /**
-     * Takes you to the page of the enpoint list
-     *
-     * @return void
-     */
-    public function endpoints()
-    {
-        $data['config'] = $this->mainConfig;
-        $data['endPointList'] = $this->_endpointList();
-        $data['endpointGroup'] = $this->endpointGroup;
-        Controller::render(__DIR__ . '/views/api.documentation', $data);
+        // Load restful configurations
+        $this->_loadConfig($args);
+
+        // Run the onBefore function
+        $this->_onBefore();
+
+        date_default_timezone_set($this->restConfig['timezone']);
     }
 
     /**
@@ -66,8 +58,6 @@ class Restful extends Authentication implements RestfulInterface
             'isAccessPageViaAccessToken' => true,
         ])->_registerEndpointToAccessRule('delete', [
             'isAccessPageViaAccessToken' => true,
-        ])->_registerEndpointToAccessRule('endpoints', [
-            'isAccessPageViaAccessToken' => false,
         ]);
     }
 
@@ -137,8 +127,6 @@ class Restful extends Authentication implements RestfulInterface
     public function create()
     {
         try {
-            // Run the validations
-            $this->runValidations();
 
             // Blocks the rest of the execution if request method does not match
             $this->allowAccess('POST');
@@ -196,9 +184,6 @@ class Restful extends Authentication implements RestfulInterface
     {
         try {
 
-            // Run the validations
-            $this->runValidations();
-
             // Blocks the rest of the execution if request method does not match
             $this->allowAccess(['PATCH', 'PUT']);
 
@@ -229,8 +214,6 @@ class Restful extends Authentication implements RestfulInterface
     public function delete()
     {
         try {
-            // Run the validations
-            $this->runValidations();
 
             // Blocks the rest of the execution if request method does not match
             $this->allowAccess(['DELETE']);
@@ -448,10 +431,20 @@ class Restful extends Authentication implements RestfulInterface
         $this->limit = intval(isset($_GET['limit']) ? $_GET['limit'] : $this->limit);
         $this->pageNumber = isset($args['pageNumber']) ? $args['pageNumber'] : 1;
 
-        // If method is not executed for the endpoints
-        if (empty($args['isMethodExecuted'])) {
-            $this->endpoints();
-        }
+    }
+
+    /**
+     * Run this function before anything else
+     *
+     * @return void
+     */
+    protected function _onBefore()
+    {
+        // Run the authorization
+        $this->runAuthorization();
+
+        // Run the validations
+        $this->runValidations();
     }
 
     /**
@@ -461,40 +454,43 @@ class Restful extends Authentication implements RestfulInterface
      */
     protected function runValidations($isValidationActivated = true)
     {
-        // Run validation
-        new Validations([
-            'db' => $this->dbConn(),
-            'isValidationActivated' => $isValidationActivated,
-            'endpointGroup' => $this->endpointGroup,
-            'endpoint' => $this->endpoint,
-            'table' => $this->tableName,
-            'tableColumns' => $this->tableColumns,
-            'requestData' => $this->request,
-            'refreshToken' => $this->_addRefreshTokenToResponse(),
-        ]);
+        if ($this->_isPageAccessibleViaAccessToken() && $this->isPostPutPatchServerRequest()) {
+            new Validations([
+                'db' => $this->dbConn(),
+                'isValidationActivated' => $isValidationActivated,
+                'endpointGroup' => $this->endpointGroup,
+                'endpoint' => $this->endpoint,
+                'table' => $this->tableName,
+                'tableColumns' => $this->tableColumns,
+                'requestData' => $this->request,
+                'validators' => $this->validators,
+            ]);
+        }
     }
 
     /**
-     * Returns the endpoint list of the child class
+     * Performs the authorization
      *
-     * @return array
+     * @return void
      */
-    protected function _endpointList()
+    protected function runAuthorization()
     {
-        $data = [];
-        $class = new \ReflectionClass($this->childClass);
-        $methods = $class->getMethods(\ReflectionMethod::IS_PUBLIC);
+        if ($this->_isPageAccessibleViaAccessToken()) {  
+            $jwtDecoded = (array) $this->_getJWTDecoded($this->accessToken);
+            $this->validateUserCredentials($jwtDecoded['username'], $jwtDecoded['password']);
 
-        $ctr = 0;
-        foreach ($methods as $value) {
-            if (!in_array($value->name, $this->declaredPredefinedMethods)) { // Only include those public
-                $data[$ctr]['name'] = $value->name;
-                $data[$ctr]['url'] = Url::baseUrl() . strtolower($this->endpointGroup) . '/' . $value->name;
-                $ctr++;
-            }
+            $init = [
+                'endpointGroup' => $this->endpointGroup,
+                'endpoint' => $this->endpoint,
+                'mainConfig' => (isset($this->mainConfig) ? $this->mainConfig : []),
+                'childClass' => $this->childClass,
+                'declaredPredefinedMethods' => $this->declaredPredefinedMethods,
+                'accessToken' => $this->accessToken,
+                'validatedUser' => $this->validatedUser      
+            ];               
+            
+            new Authorization($init);        
         }
-
-        return $data;
     }
 
     /**

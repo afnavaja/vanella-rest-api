@@ -19,7 +19,11 @@ class Validations
         $this->db = isset($this->args['db']) && $this->args['db'] ? $this->args['db'] : null;
         $this->table = isset($this->args['table']) && $this->args['table'] ? $this->args['table'] : null;
         $this->refreshToken = isset($this->args['refreshToken']) && $this->args['refreshToken'] ? $this->args['refreshToken'] : null;
-        $this->runValidation($this->args);
+        $this->validators = $this->args['validators'];
+
+        if($this->isValidationActivated) {
+            $this->runValidation($this->args);
+        }
     }
 
     /**
@@ -59,17 +63,9 @@ class Validations
                 'error' => $e->getMessage(),
             ], 500);
         }
-
     }
 
-    /**
-     * Load the validators
-     */
-    protected function _loadValidators()
-    {
-        $this->validators = require_once '../config/validators.php';
-    }
-
+   
     /**
      * Run the validation
      *
@@ -82,7 +78,6 @@ class Validations
 
         if ($this->isValidationActivated) {
 
-            $this->_loadValidators(); // Load the validators
             $requestData = $this->args['requestData'];
             $validationRules = $this->_loadValidationConfig();
             $tableColumns = $this->args['tableColumns'];
@@ -155,7 +150,7 @@ class Validations
                 ];
 
                 if (!is_null($this->refreshToken)) {
-                    $data = array_merge($data, ['refresh_token' => $this->refreshToken]);
+                    $data = array_merge($data, $this->refreshToken);
                 }
 
                 Helpers::renderAsJson($data, 400);

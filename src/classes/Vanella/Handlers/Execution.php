@@ -9,6 +9,7 @@ class Execution
 {
 
     protected $_args;
+    protected $url;
 
     /**
      * Default constructor
@@ -16,6 +17,7 @@ class Execution
     public function __construct($args = [])
     {   
         $this->_args = $args;
+        $this->url = new Url();
         $this->execute();
     }
 
@@ -24,12 +26,11 @@ class Execution
      */
     public function execute()
     {
-        try {
-            $url = new Url(); // Get the current route for the api
-            $class = ucwords($url->segment(1)); // Set class name as the first url segment
-            $function = $url->segment(2); // Set function name as the second url segment
-            $segment3 = !empty($url->segment(3)) ? $url->segment(3) : null; // Either this could be an Id or a Page
-            $segment4 = !empty($url->segment(4)) ? $url->segment(4) : null; // This would be the page id
+        try {          
+            $class = ucwords($this->url->segment(1)); // Set class name as the first url segment
+            $function = $this->url->segment(2); // Set function name as the second url segment
+            $segment3 = !empty($this->url->segment(3)) ? $this->url->segment(3) : null; // Either this could be an Id or a Page
+            $segment4 = !empty($this->url->segment(4)) ? $this->url->segment(4) : null; // This would be the page id
 
             $id = null;
             $pageNumber = null;
@@ -48,7 +49,8 @@ class Execution
                         'endpointGroup' => $class,
                         'endpoint' => $function,
                         'isMethodExecuted' => !empty($function) ? true : false,
-                        'config' => $this->_args['config']
+                        'config' => $this->_args['config'],
+                        'url' => $this->url
                     ]);                     
                     // Dynamically execute the function
                     if (!empty($function) && method_exists($class, $function)) {
