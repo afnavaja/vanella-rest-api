@@ -119,7 +119,7 @@ class Authentication extends Entrypoint
      */
     protected function _loadAccessTokenRuleFromConfig()
     {
-        $rules = Helpers::loadConfig('../restful/accessTokenRules/' . $this->endpointGroup . '.php');
+        $rules = Helpers::loadConfig('../restful/AccessTokenRules/' . $this->endpointGroup . '.php');
         if (!empty($rules)) {
             foreach ($rules as $endpoint => $accessTokenRule) {
                 $this->_registerEndpointToAccessRule($endpoint, [
