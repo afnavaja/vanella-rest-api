@@ -357,7 +357,7 @@ class Authentication extends Entrypoint
     protected function _validatePassword($username, $password)
     {
         $db = $this->dbConn()
-            ->select($this->tableName, 'password,role,username,email')
+            ->select($this->mainConfig['defaultTableForUsers'], 'password,role,username,email')
             ->where('username', $username)->one();
 
         // Do not pass the password
